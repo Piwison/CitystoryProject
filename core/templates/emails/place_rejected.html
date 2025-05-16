@@ -1,0 +1,33 @@
+{% extends "emails/base_email.html" %}
+
+{% block title %}Place Not Approved{% endblock %}
+
+{% block content %}
+<h2>Your Place Was Not Approved</h2>
+
+<p>Hello {{ user.first_name }},</p>
+
+<p>We regret to inform you that your place "{{ notification.content_object.name }}" could not be approved at this time.</p>
+
+<p>Common reasons for place rejection include:</p>
+<ul>
+    <li>Incomplete or inaccurate information</li>
+    <li>Duplicate listing</li>
+    <li>Business is permanently closed</li>
+    <li>Location cannot be verified</li>
+    <li>Inappropriate content or categories</li>
+    <li>Violation of our community guidelines</li>
+</ul>
+
+<p>You can submit a new place listing that:</p>
+<ul>
+    <li>Includes accurate and complete information</li>
+    <li>Provides verifiable location details</li>
+    <li>Contains appropriate content and categorization</li>
+    <li>Follows our community guidelines</li>
+</ul>
+
+<p>Thank you for understanding. We look forward to your revised submission.</p>
+
+<p>Best regards,<br>The CityStory Team</p>
+{% endblock %} 

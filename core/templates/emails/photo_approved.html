@@ -1,0 +1,21 @@
+{% extends "emails/base_email.html" %}
+
+{% block title %}Photo Approved{% endblock %}
+
+{% block content %}
+<h2>Your Photo Has Been Approved!</h2>
+
+<p>Hello {{ user.first_name }},</p>
+
+<p>Great news! Your photo for "{{ notification.content_object.place.name }}" has been approved and is now live on CityStory.</p>
+
+<p>Your photo will help other users get a better understanding of what to expect when visiting this place.</p>
+
+<p>Thank you for contributing to our community! Your photos help others discover great places in the city.</p>
+
+<a href="{{ site_url }}{% url 'place-detail' notification.content_object.place.id %}" class="button">View Your Photo</a>
+
+<p>Keep exploring and sharing your experiences!</p>
+
+<p>Best regards,<br>The CityStory Team</p>
+{% endblock %} 

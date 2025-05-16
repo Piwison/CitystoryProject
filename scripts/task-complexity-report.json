@@ -1,0 +1,91 @@
+{
+  "meta": {
+    "generatedAt": "2025-04-29T03:44:05.771Z",
+    "tasksAnalyzed": 10,
+    "thresholdScore": 5,
+    "projectName": "Your Project Name",
+    "usedResearch": false
+  },
+  "complexityAnalysis": [
+    {
+      "taskId": 1,
+      "taskTitle": "Set up Django project with REST Framework and PostgreSQL",
+      "complexityScore": 6,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Break down the Django project setup into specific subtasks covering project initialization, REST Framework integration, PostgreSQL configuration, environment setup, and project structure organization.",
+      "reasoning": "This task involves multiple technical components (Django, REST Framework, PostgreSQL) and requires proper configuration. While each component is well-documented, integrating them correctly requires attention to detail and understanding of dependencies."
+    },
+    {
+      "taskId": 2,
+      "taskTitle": "Implement user authentication system",
+      "complexityScore": 7,
+      "recommendedSubtasks": 6,
+      "expansionPrompt": "Divide the authentication system implementation into subtasks covering user model creation, JWT configuration, API endpoint development for registration/login/logout, serializer implementation, and security validation.",
+      "reasoning": "Authentication is a critical system component with security implications. It involves custom user models, JWT implementation, multiple endpoints, and proper validation. The complexity comes from ensuring security while maintaining usability."
+    },
+    {
+      "taskId": 3,
+      "taskTitle": "Create data models for places and features",
+      "complexityScore": 5,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Break down the data modeling task into subtasks covering Place model implementation, Feature model creation, relationship establishment between models, and model method development.",
+      "reasoning": "This task involves designing database models with proper relationships. While not extremely complex, it requires careful planning as these models will form the foundation of the application. The many-to-many relationship adds some complexity."
+    },
+    {
+      "taskId": 4,
+      "taskTitle": "Implement CRUD API endpoints for places",
+      "complexityScore": 7,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Divide the places API implementation into subtasks covering serializer creation, ViewSet/APIView implementation, permission system, filtering/pagination, and draft/published state management.",
+      "reasoning": "This task involves creating multiple endpoints with different access patterns, permissions, and data handling requirements. The draft/published state and permission checks add complexity to what would otherwise be standard CRUD operations."
+    },
+    {
+      "taskId": 5,
+      "taskTitle": "Implement features/tags system and connect to places",
+      "complexityScore": 6,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Break down the features/tags system into subtasks covering feature API endpoints, place-type filtering logic, feature-place association endpoints, and serializer integration.",
+      "reasoning": "This task requires implementing a flexible tagging system with type-based filtering. The complexity comes from ensuring proper validation and maintaining the relationship between places and features based on place types."
+    },
+    {
+      "taskId": 6,
+      "taskTitle": "Implement ratings and reviews system",
+      "complexityScore": 7,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Divide the ratings and reviews system into subtasks covering model creation, API endpoint implementation, rating calculation logic, permission/validation system, and moderation flag integration.",
+      "reasoning": "This task involves creating a multi-dimensional rating system with complex calculations and permission rules. The one-review-per-user constraint and moderation requirements add significant complexity to the implementation."
+    },
+    {
+      "taskId": 7,
+      "taskTitle": "Set up photo upload and storage functionality",
+      "complexityScore": 8,
+      "recommendedSubtasks": 6,
+      "expansionPrompt": "Break down the photo functionality into subtasks covering model creation, file upload API, validation system, storage configuration, thumbnail generation, and permission implementation.",
+      "reasoning": "File handling adds significant complexity due to security concerns, validation requirements, and performance considerations. The thumbnail generation and future migration path to S3 further increase the complexity of this task."
+    },
+    {
+      "taskId": 8,
+      "taskTitle": "Create moderation system for places and reviews",
+      "complexityScore": 7,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Divide the moderation system into subtasks covering admin interface customization, approval workflow implementation, moderator API endpoints, content filtering, and status management.",
+      "reasoning": "This task requires implementing a workflow system with multiple states and user roles. The integration with existing models and ensuring proper access control for moderators adds complexity to the implementation."
+    },
+    {
+      "taskId": 9,
+      "taskTitle": "Implement search and explore functionality",
+      "complexityScore": 8,
+      "recommendedSubtasks": 6,
+      "expansionPrompt": "Break down the search functionality into subtasks covering text search implementation, filter system, sorting options, query optimization, endpoint creation, and performance testing.",
+      "reasoning": "Search functionality involves complex queries with multiple filtering and sorting options. Ensuring performance with proper indexing while maintaining flexibility in search parameters makes this a challenging task."
+    },
+    {
+      "taskId": 10,
+      "taskTitle": "Connect frontend to backend APIs and test end-to-end flows",
+      "complexityScore": 9,
+      "recommendedSubtasks": 7,
+      "expansionPrompt": "Divide the frontend integration into subtasks covering API client implementation, authentication flow, place management UI, review/rating components, photo upload interface, search/filter UI, and error handling system.",
+      "reasoning": "This task involves connecting all previous components into a cohesive user experience. The complexity comes from integrating multiple systems, handling authentication state, implementing proper error handling, and ensuring a smooth user experience across all flows."
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{% extends "emails/base_email.html" %}
+
+{% block title %}Photo Not Approved{% endblock %}
+
+{% block content %}
+<h2>Your Photo Was Not Approved</h2>
+
+<p>Hello {{ user.first_name }},</p>
+
+<p>We regret to inform you that your photo for "{{ notification.content_object.place.name }}" could not be approved at this time.</p>
+
+<p>Common reasons for photo rejection include:</p>
+<ul>
+    <li>Poor image quality or blurriness</li>
+    <li>Inappropriate or offensive content</li>
+    <li>Copyright concerns</li>
+    <li>Not related to the place</li>
+    <li>Personal information or faces clearly visible</li>
+    <li>Violation of our community guidelines</li>
+</ul>
+
+<p>You're welcome to submit another photo that follows our community guidelines.</p>
+
+<a href="{{ site_url }}{% url 'place-detail' notification.content_object.place.id %}" class="button">View Place</a>
+
+<p>Thank you for understanding.</p>
+
+<p>Best regards,<br>The CityStory Team</p>
+{% endblock %} 

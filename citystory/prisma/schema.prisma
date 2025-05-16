@@ -1,0 +1,236 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// This is your Prisma schema file
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AuthType {
+  LOCAL
+  GOOGLE
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum PlaceStatus {
+  APPROVED
+  PENDING_REVIEW
+  REJECTED
+}
+
+enum PlaceType {
+  RESTAURANT
+  CAFE
+  BAR
+  ATTRACTION
+  OTHER
+}
+
+enum TaipeiDistrict {
+  XINYI
+  DATONG
+  DAAN
+  SHILIN
+  WANHUA
+  SONGSHAN
+  ZHONGSHAN
+  BEITOU
+  NANGANG
+  WENSHAN
+  NEIHU
+  ZHONGZHENG
+  OTHER
+}
+
+model User {
+  id            String       @id @default(cuid())
+  email         String       @unique
+  name          String?
+  username      String?      @unique
+  password      String?      // Nullable for SSO users
+  authType      AuthType     @default(LOCAL)
+  googleId      String?      @unique
+  avatar        String?      // Profile image URL
+  bio           String?      // Short user description
+  location      String?      // User's current location (city/country)
+  guidePoints   Int          @default(0)  // Points earned for contributions
+  guideLevel    Int          @default(1)  // Level based on points
+  isVerified    Boolean      @default(false)
+  status        UserStatus   @default(ACTIVE)
+  lastLogin     DateTime?    
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  
+  // Relations
+  places        Place[]
+  reviews       Review[]
+  photos        PlacePhoto[]
+  savedPlaces   SavedPlace[]
+  userBadges    UserBadge[]
+
+  @@index([email])
+  @@index([googleId])
+  @@index([username])
+  @@index([guideLevel])
+}
+
+model Place {
+  id            String       @id @default(cuid())
+  name          String
+  slug          String?      @unique  // URL-friendly version of name
+  address       String
+  district      TaipeiDistrict?  // District in Taipei
+  latitude      Float?       // Auto-generated from address
+  longitude     Float?       // Auto-generated from address
+  placeType     PlaceType
+  avgRating     Float?
+  priceRange    Int?         // 1-5 scale (corresponds to NT$500 increments)
+  description   String?      @db.Text
+  googleMapsLink String?
+  status        PlaceStatus  @default(APPROVED)
+  contributorId String
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  
+  // Relations
+  contributor   User         @relation(fields: [contributorId], references: [id])
+  reviews       Review[]
+  photos        PlacePhoto[]
+  features      PlaceFeature[]
+  savedBy       SavedPlace[]
+
+  @@index([name])
+  @@index([contributorId])
+  @@index([status])
+  @@index([placeType])
+  @@index([district])
+  @@index([createdAt])
+  @@index([latitude, longitude]) // Geospatial index for location-based queries
+  // Note: PostgreSQL full-text search should be implemented using database functions
+  // or raw SQL queries, as Prisma's @@fulltext is not supported for PostgreSQL
+}
+
+model Review {
+  id              String   @id @default(cuid())
+  placeId         String
+  userId          String
+  foodQuality     Float?
+  service         Float?
+  value           Float?
+  cleanliness     Float?
+  overallRating   Float
+  comment         String?  @db.Text
+  helpfulCount    Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  place           Place    @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([placeId, userId])  // One review per place per user
+  @@index([placeId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model PlacePhoto {
+  id        String   @id @default(cuid())
+  placeId   String
+  userId    String
+  url       String
+  caption   String?
+  isPrimary Boolean  @default(false)
+  isApproved Boolean @default(true)
+  uploadedAt DateTime @default(now())
+  
+  // Relations
+  place     Place    @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([placeId])
+  @@index([userId])
+  @@index([isPrimary])
+}
+
+model Feature {
+  id          String        @id @default(cuid())
+  name        String        @unique
+  icon        String?
+  featureType String        // Category type: amenity, cuisine, etc.
+  
+  // Relations
+  placeFeatures PlaceFeature[]
+  
+  @@index([name])
+  @@index([featureType])
+}
+
+model PlaceFeature {
+  id        String   @id @default(cuid())
+  placeId   String
+  featureId String
+  
+  // Relations
+  place     Place    @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  feature   Feature  @relation(fields: [featureId], references: [id])
+  
+  @@unique([placeId, featureId])
+  @@index([placeId])
+  @@index([featureId])
+}
+
+model SavedPlace {
+  id        String   @id @default(cuid())
+  userId    String
+  placeId   String
+  notes     String?
+  savedAt   DateTime @default(now())
+  
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  place     Place    @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, placeId])
+  @@index([userId])
+  @@index([placeId])
+}
+
+model Badge {
+  id          String      @id @default(cuid())
+  name        String      @unique
+  icon        String
+  description String
+  maxLevel    Int         @default(1)
+  category    String
+  
+  // Relations
+  userBadges  UserBadge[]
+}
+
+model UserBadge {
+  id        String   @id @default(cuid())
+  userId    String
+  badgeId   String
+  level     Int      @default(1)
+  earnedAt  DateTime @default(now())
+  
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge     Badge    @relation(fields: [badgeId], references: [id])
+  
+  @@unique([userId, badgeId])
+  @@index([userId])
+  @@index([badgeId])
+}
+  

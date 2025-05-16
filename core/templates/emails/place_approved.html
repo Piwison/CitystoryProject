@@ -1,0 +1,35 @@
+{% extends "emails/base_email.html" %}
+
+{% block title %}Place Approved{% endblock %}
+
+{% block content %}
+<h2>Your Place Has Been Approved!</h2>
+
+<p>Hello {{ user.first_name }},</p>
+
+<p>Great news! Your place "{{ notification.content_object.name }}" has been approved and is now live on CityStory.</p>
+
+<p>Your place listing includes:</p>
+<ul>
+    <li>Name: {{ notification.content_object.name }}</li>
+    <li>Category: {{ notification.content_object.category }}</li>
+    <li>Address: {{ notification.content_object.address }}</li>
+    {% if notification.content_object.website %}
+    <li>Website: {{ notification.content_object.website }}</li>
+    {% endif %}
+</ul>
+
+<p>Users can now:</p>
+<ul>
+    <li>Find your place in search results</li>
+    <li>Leave reviews and ratings</li>
+    <li>Upload photos</li>
+    <li>Share your place with others</li>
+</ul>
+
+<a href="{{ site_url }}{% url 'place-detail' notification.content_object.id %}" class="button">View Your Place</a>
+
+<p>Thank you for contributing to our community! You're helping others discover great places in the city.</p>
+
+<p>Best regards,<br>The CityStory Team</p>
+{% endblock %} 

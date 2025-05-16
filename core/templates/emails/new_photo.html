@@ -1,0 +1,21 @@
+{% extends "emails/base_email.html" %}
+
+{% block title %}New Photo for Your Place{% endblock %}
+
+{% block content %}
+<h2>New Photo Uploaded</h2>
+
+<p>Hello {{ user.first_name }},</p>
+
+<p>A new photo has been uploaded for your place "{{ notification.content_object.place.name }}".</p>
+
+<p>The photo was uploaded by {{ notification.actor.get_full_name }}.</p>
+
+<p>Note: This photo is pending moderation and will be visible to the public after approval.</p>
+
+<a href="{{ site_url }}{% url 'place-detail' notification.content_object.place.id %}" class="button">View Your Place</a>
+
+<p>Thank you for being part of the CityStory community!</p>
+
+<p>Best regards,<br>The CityStory Team</p>
+{% endblock %} 

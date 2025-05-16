@@ -1,0 +1,26 @@
+{% extends "emails/base_email.html" %}
+
+{% block title %}Review Approved{% endblock %}
+
+{% block content %}
+<h2>Your Review Has Been Approved!</h2>
+
+<p>Hello {{ user.first_name }},</p>
+
+<p>Great news! Your review for "{{ notification.content_object.place.name }}" has been approved and is now live on CityStory.</p>
+
+<p>Here's what you wrote:</p>
+<blockquote style="margin: 20px; padding: 10px; border-left: 4px solid #4a90e2; background-color: #f5f5f5;">
+    {{ notification.content_object.text }}
+</blockquote>
+
+<p>Your rating: {{ notification.content_object.rating }} / 5</p>
+
+<p>Thank you for contributing to our community! Your insights help others discover great places in the city.</p>
+
+<a href="{{ site_url }}{% url 'place-detail' notification.content_object.place.id %}" class="button">View Your Review</a>
+
+<p>Keep exploring and sharing your experiences!</p>
+
+<p>Best regards,<br>The CityStory Team</p>
+{% endblock %} 
