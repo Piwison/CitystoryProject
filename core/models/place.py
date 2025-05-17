@@ -100,14 +100,14 @@ class Place(TimestampMixin, ModerationMixin):
 
     def calculate_average_rating(self):
         """Calculate the average rating for this place."""
-        reviews = self.reviews.filter(moderation_status='approved')
+        reviews = self.reviews.filter(moderation_status='APPROVED')
         if not reviews.exists():
             return None
         return reviews.aggregate(Avg('overall_rating'))['overall_rating__avg']
 
     def update_average_ratings(self):
         """Update all average ratings based on approved reviews"""
-        approved_reviews = self.reviews.filter(moderation_status='approved')
+        approved_reviews = self.reviews.filter(moderation_status='APPROVED')
         if not approved_reviews.exists():
             self.average_rating = 0
             self.average_food_rating = 0
@@ -135,19 +135,19 @@ class Place(TimestampMixin, ModerationMixin):
 
     def get_primary_photo(self):
         """Get the primary photo for this place"""
-        return self.photos.filter(is_primary=True, moderation_status='approved').first()
+        return self.photos.filter(is_primary=True, moderation_status='APPROVED').first()
 
     def get_approved_photos(self):
         """Get all approved photos for this place"""
-        return self.photos.filter(moderation_status='approved').order_by('order', '-created_at')
+        return self.photos.filter(moderation_status='APPROVED').order_by('order', '-created_at')
 
     def get_approved_reviews(self):
         """Get all approved reviews for this place"""
-        return self.reviews.filter(moderation_status='approved').order_by('-created_at')
+        return self.reviews.filter(moderation_status='APPROVED').order_by('-created_at')
 
     def get_review_count(self):
         """Get the total number of approved reviews"""
-        return self.reviews.filter(moderation_status='approved').count()
+        return self.reviews.filter(moderation_status='APPROVED').count()
 
     def get_absolute_url(self):
         """Get the absolute URL for this place"""
@@ -157,12 +157,12 @@ class Place(TimestampMixin, ModerationMixin):
     @property
     def is_published(self):
         """Check if the place is published (not draft and approved)"""
-        return not self.draft and self.moderation_status == 'approved'
+        return not self.draft and self.moderation_status == 'APPROVED'
 
     @property
     def has_primary_photo(self):
         """Check if the place has a primary photo"""
-        return self.photos.filter(is_primary=True, moderation_status='approved').exists()
+        return self.photos.filter(is_primary=True, moderation_status='APPROVED').exists()
 
     @property
     def rating_summary(self):

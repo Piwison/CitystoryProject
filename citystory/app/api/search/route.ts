@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-import { searchService } from "@/lib/services/searchService"
+import { searchPlaces } from "@/lib/api/services/searchService"
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,21 +8,24 @@ export async function GET(request: NextRequest) {
     
     const filters = {
       query: searchParams.get("q") || undefined,
-      category: searchParams.get("category") || undefined,
-      type: searchParams.get("type") || undefined,
-      location: searchParams.get("location") || undefined,
-      page: searchParams.get("page") ? parseInt(searchParams.get("page")!) : undefined,
-      limit: searchParams.get("limit") ? parseInt(searchParams.get("limit")!) : undefined,
-      sortBy: searchParams.get("sort_by") || undefined,
-      sortOrder: searchParams.get("sort_order") as "asc" | "desc" | undefined,
-      priceRange: searchParams.getAll("price_range[]").map(Number),
-      rating: searchParams.getAll("rating[]").map(Number),
+      placeType: searchParams.get("type") || undefined,
+      district: searchParams.get("location") || undefined,
       features: searchParams.getAll("features[]"),
+      priceRange: searchParams.has("price_min") && searchParams.has("price_max") ? 
+        [Number(searchParams.get("price_min")), Number(searchParams.get("price_max"))] : 
+        undefined,
+      coordinates: searchParams.has("lat") && searchParams.has("lng") ? 
+        { 
+          lat: Number(searchParams.get("lat")), 
+          lng: Number(searchParams.get("lng")) 
+        } : 
+        undefined,
+      radius: searchParams.has("radius") ? Number(searchParams.get("radius")) : undefined
     }
 
-    const results = await searchService.searchPlaces(filters)
+    const results = await searchPlaces(filters)
     
-    return NextResponse.json(results)
+    return NextResponse.json({ results })
   } catch (error) {
     console.error("Search error:", error)
     return NextResponse.json(
@@ -35,9 +38,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const results = await searchService.searchPlaces(body)
+    const results = await searchPlaces(body)
     
-    return NextResponse.json(results)
+    return NextResponse.json({ results })
   } catch (error) {
     console.error("Search error:", error)
     return NextResponse.json(

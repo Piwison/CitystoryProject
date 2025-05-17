@@ -37,9 +37,9 @@ class ModeratedModelAdmin(admin.ModelAdmin):
     def moderation_status_display(self, obj):
         """Colorized moderation status"""
         colors = {
-            'pending': 'orange',
-            'approved': 'green',
-            'rejected': 'red',
+            'PENDING': 'orange',
+            'APPROVED': 'green',
+            'REJECTED': 'red',
         }
         return format_html(
             '<span style="color: {};">{}</span>',
@@ -51,14 +51,14 @@ class ModeratedModelAdmin(admin.ModelAdmin):
     def approve_items(self, request, queryset):
         """Bulk approve selected items"""
         for obj in queryset:
-            obj.update_moderation_status('approved', moderator=request.user)
+            obj.update_moderation_status('APPROVED', moderator=request.user)
         self.message_user(request, f'{len(queryset)} items were successfully approved.')
     approve_items.short_description = 'Approve selected items'
     
     def reject_items(self, request, queryset):
         """Bulk reject selected items"""
         for obj in queryset:
-            obj.update_moderation_status('rejected', moderator=request.user)
+            obj.update_moderation_status('REJECTED', moderator=request.user)
         self.message_user(request, f'{len(queryset)} items were successfully rejected.')
     reject_items.short_description = 'Reject selected items'
     
@@ -73,8 +73,8 @@ class ModeratedModelAdmin(admin.ModelAdmin):
         qs = super().get_queryset(request)
         return qs.order_by(
             models.Case(
-                models.When(moderation_status='pending', then=0),
-                models.When(moderation_status='rejected', then=1),
+                models.When(moderation_status='PENDING', then=0),
+                models.When(moderation_status='REJECTED', then=1),
                 default=2,
                 output_field=models.IntegerField(),
             ),

@@ -28,7 +28,7 @@ export interface PlaceHeaderProps {
   imageUrl?: string;
   hours?: string;
   isOwner?: boolean;
-  moderationStatus?: 'pending' | 'approved' | 'rejected';
+  moderationStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
   tags?: string[];
   priceLevel?: number;
 }
@@ -44,7 +44,7 @@ export default function PlaceHeader({
   imageUrl = '/placeholder.svg',
   hours,
   isOwner = false,
-  moderationStatus = 'approved',
+  moderationStatus = 'APPROVED',
   tags = [],
   priceLevel = 0,
 }: PlaceHeaderProps) {
@@ -55,11 +55,11 @@ export default function PlaceHeader({
 
   const getModerationStatusLabel = (status: string) => {
     switch (status) {
-      case 'pending':
+      case 'PENDING':
         return 'Pending Approval';
-      case 'approved':
+      case 'APPROVED':
         return 'Approved';
-      case 'rejected':
+      case 'REJECTED':
         return 'Rejected';
       default:
         return status;
@@ -68,11 +68,11 @@ export default function PlaceHeader({
 
   const getModerationStatusClass = (status: string) => {
     switch (status) {
-      case 'pending':
+      case 'PENDING':
         return 'bg-amber-100 text-amber-800';
-      case 'approved':
+      case 'APPROVED':
         return 'bg-green-100 text-green-800';
-      case 'rejected':
+      case 'REJECTED':
         return 'bg-red-100 text-red-800';
       default:
         return 'bg-gray-100 text-gray-800';
@@ -155,9 +155,9 @@ export default function PlaceHeader({
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>
-                    {moderationStatus === 'pending'
+                    {moderationStatus === 'PENDING'
                       ? 'Your place is being reviewed by moderators'
-                      : moderationStatus === 'rejected'
+                      : moderationStatus === 'REJECTED'
                       ? 'Your place was rejected. Please edit and resubmit.'
                       : 'Your place is approved and visible to all users'}
                   </p>

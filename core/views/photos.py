@@ -42,7 +42,7 @@ class PhotoViewSet(viewsets.ModelViewSet):
         # Filter by permission level and moderation status
         if not user.is_authenticated:
             # Anonymous users can only see approved photos
-            queryset = queryset.filter(moderation_status='approved')
+            queryset = queryset.filter(moderation_status='APPROVED')
         elif user.is_staff or user.is_superuser:
             # Staff can see all photos
             pass
@@ -50,7 +50,7 @@ class PhotoViewSet(viewsets.ModelViewSet):
             # Regular authenticated users can see their own photos + approved photos
             queryset = queryset.filter(
                 Q(uploader=user) |  # Their own photos (any status)
-                Q(moderation_status='approved')  # Approved photos from others
+                Q(moderation_status='APPROVED')  # Approved photos from others
             )
             
         return queryset

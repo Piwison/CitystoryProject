@@ -99,7 +99,7 @@ class Badge(TimestampMixin):
             from .place import Place
             return Place.objects.filter(
                 user=user, 
-                moderation_status='approved'
+                moderation_status='APPROVED'
             ).exists()
         
         @staticmethod
@@ -108,7 +108,7 @@ class Badge(TimestampMixin):
             from .place import Place
             return Place.objects.filter(
                 user=user, 
-                moderation_status='approved'
+                moderation_status='APPROVED'
             ).count() >= 5
         
         @staticmethod
@@ -117,38 +117,38 @@ class Badge(TimestampMixin):
             from .place import Place
             return Place.objects.filter(
                 user=user, 
-                moderation_status='approved'
+                moderation_status='APPROVED'
             ).count() >= 20
         
         @staticmethod
         def check_first_review(user):
             """Check if user has written at least one approved review."""
-            return user.reviews.filter(moderation_status='approved').exists()
+            return user.reviews.filter(moderation_status='APPROVED').exists()
         
         @staticmethod
         def check_review_enthusiast(user):
             """Check if user has written at least 10 approved reviews."""
-            return user.reviews.filter(moderation_status='approved').count() >= 10
+            return user.reviews.filter(moderation_status='APPROVED').count() >= 10
         
         @staticmethod
         def check_review_expert(user):
             """Check if user has written at least 30 approved reviews."""
-            return user.reviews.filter(moderation_status='approved').count() >= 30
+            return user.reviews.filter(moderation_status='APPROVED').count() >= 30
         
         @staticmethod
         def check_first_photo(user):
             """Check if user has uploaded at least one approved photo."""
-            return user.photo_uploads.filter(moderation_status='approved').exists()
+            return user.photo_uploads.filter(moderation_status='APPROVED').exists()
         
         @staticmethod
         def check_photographer(user):
             """Check if user has uploaded at least 10 approved photos."""
-            return user.photo_uploads.filter(moderation_status='approved').count() >= 10
+            return user.photo_uploads.filter(moderation_status='APPROVED').count() >= 10
         
         @staticmethod
         def check_photo_journalist(user):
             """Check if user has uploaded at least 30 approved photos."""
-            return user.photo_uploads.filter(moderation_status='approved').count() >= 30
+            return user.photo_uploads.filter(moderation_status='APPROVED').count() >= 30
         
         @staticmethod
         def check_helpful_reviewer_bronze(user):
@@ -223,7 +223,7 @@ class Badge(TimestampMixin):
             
             distinct_cities = Place.objects.filter(
                 user=user,
-                moderation_status='approved'
+                moderation_status='APPROVED'
             ).values('city').distinct().count()
             
             return distinct_cities >= 3
@@ -235,7 +235,7 @@ class Badge(TimestampMixin):
             
             distinct_types = Place.objects.filter(
                 user=user,
-                moderation_status='approved'
+                moderation_status='APPROVED'
             ).values('type').distinct().count()
             
             return distinct_types >= 4 

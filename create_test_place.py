@@ -20,7 +20,7 @@ def create_test_place():
             address='No. 23, Lane 223, Section 4, Zhongxiao East Road, Da\'an District, Taipei City',
             user=user,
             slug='oasis-coffee',
-            moderation_status='approved',
+            moderation_status='APPROVED',
             district='daan',
             latitude=25.0410,
             longitude=121.5530

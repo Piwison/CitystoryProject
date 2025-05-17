@@ -5,9 +5,9 @@ from .mixins import TimestampMixin, ModerationMixin
 
 class Photo(TimestampMixin, ModerationMixin):
     MODERATION_STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('approved', 'Approved'),
-        ('rejected', 'Rejected'),
+        ('PENDING', 'Pending'),
+        ('APPROVED', 'Approved'),
+        ('REJECTED', 'Rejected'),
     ]
 
     place = models.ForeignKey('core.Place', on_delete=models.CASCADE, related_name='photos')

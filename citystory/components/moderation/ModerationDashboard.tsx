@@ -22,7 +22,7 @@ interface ContentItem {
   id: string
   type: "place" | "review" | "photo"
   content: Place | Review
-  status: "pending" | "approved" | "rejected"
+  status: "PENDING" | "APPROVED" | "REJECTED"
   createdAt: string
   moderatedAt?: string
   moderator?: string
@@ -33,7 +33,7 @@ export default function ModerationDashboard() {
   const [activeTab, setActiveTab] = useState("places")
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
-  const [statusFilter, setStatusFilter] = useState<string>("pending")
+  const [statusFilter, setStatusFilter] = useState<string>("PENDING")
   const [content, setContent] = useState<ContentItem[]>([])
   const moderationService = ModerationService.getInstance()
 
@@ -78,7 +78,7 @@ export default function ModerationDashboard() {
     }
   }
 
-  const handleStatusUpdate = async (itemId: string, newStatus: "approved" | "rejected", comment?: string) => {
+  const handleStatusUpdate = async (itemId: string, newStatus: "APPROVED" | "REJECTED", comment?: string) => {
     try {
       if (activeTab === "places") {
         await moderationService.updatePlaceStatus(itemId, {
@@ -124,7 +124,7 @@ export default function ModerationDashboard() {
                 <p className="text-sm text-gray-500 mt-1">{place.location}</p>
               </div>
               <Badge
-                variant={item.status === "pending" ? "outline" : item.status === "approved" ? "default" : "destructive"}
+                variant={item.status === "PENDING" ? "outline" : item.status === "APPROVED" ? "default" : "destructive"}
                 className="ml-2"
               >
                 {item.status}
@@ -139,9 +139,9 @@ export default function ModerationDashboard() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => handleStatusUpdate(item.id, "rejected", "Content does not meet guidelines")}
+                  onClick={() => handleStatusUpdate(item.id, "REJECTED", "Content does not meet guidelines")}
                   className="text-red-600 hover:text-red-700"
-                  disabled={item.status !== "pending"}
+                  disabled={item.status !== "PENDING"}
                 >
                   <XCircle className="h-4 w-4 mr-2" />
                   Reject
@@ -149,9 +149,9 @@ export default function ModerationDashboard() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => handleStatusUpdate(item.id, "approved")}
+                  onClick={() => handleStatusUpdate(item.id, "APPROVED")}
                   className="text-green-600 hover:text-green-700"
-                  disabled={item.status !== "pending"}
+                  disabled={item.status !== "PENDING"}
                 >
                   <CheckCircle2 className="h-4 w-4 mr-2" />
                   Approve
@@ -172,7 +172,7 @@ export default function ModerationDashboard() {
                 <p className="text-sm text-gray-500 mt-1">by {review.user_name}</p>
               </div>
               <Badge
-                variant={item.status === "pending" ? "outline" : item.status === "approved" ? "default" : "destructive"}
+                variant={item.status === "PENDING" ? "outline" : item.status === "APPROVED" ? "default" : "destructive"}
                 className="ml-2"
               >
                 {item.status}
@@ -195,9 +195,9 @@ export default function ModerationDashboard() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => handleStatusUpdate(item.id, "rejected", "Review does not meet guidelines")}
+                  onClick={() => handleStatusUpdate(item.id, "REJECTED", "Review does not meet guidelines")}
                   className="text-red-600 hover:text-red-700"
-                  disabled={item.status !== "pending"}
+                  disabled={item.status !== "PENDING"}
                 >
                   <XCircle className="h-4 w-4 mr-2" />
                   Reject
@@ -205,9 +205,9 @@ export default function ModerationDashboard() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => handleStatusUpdate(item.id, "approved")}
+                  onClick={() => handleStatusUpdate(item.id, "APPROVED")}
                   className="text-green-600 hover:text-green-700"
-                  disabled={item.status !== "pending"}
+                  disabled={item.status !== "PENDING"}
                 >
                   <CheckCircle2 className="h-4 w-4 mr-2" />
                   Approve
@@ -260,9 +260,9 @@ export default function ModerationDashboard() {
             <SelectValue placeholder="Filter by status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="approved">Approved</SelectItem>
-            <SelectItem value="rejected">Rejected</SelectItem>
+            <SelectItem value="PENDING">Pending</SelectItem>
+            <SelectItem value="APPROVED">Approved</SelectItem>
+            <SelectItem value="REJECTED">Rejected</SelectItem>
           </SelectContent>
         </Select>
       </div>

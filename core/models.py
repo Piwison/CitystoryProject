@@ -14,9 +14,9 @@ class Place(models.Model):
     PRICE_RANGES = PRICE_RANGE_CHOICES
     
     MODERATION_STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('approved', 'Approved'),
-        ('rejected', 'Rejected'),
+        ('PENDING', 'Pending'),
+        ('APPROVED', 'Approved'),
+        ('REJECTED', 'Rejected'),
     ]
     
     name = models.CharField(max_length=255)
@@ -40,7 +40,7 @@ class Place(models.Model):
     moderation_status = models.CharField(
         max_length=20,
         choices=MODERATION_STATUS_CHOICES,
-        default='pending'
+        default='PENDING'
     )
     moderation_comment = models.TextField(blank=True)
     moderated_at = models.DateTimeField(null=True, blank=True)
@@ -57,7 +57,7 @@ class Place(models.Model):
     
     def update_average_rating(self):
         """Update the average rating based on all approved reviews."""
-        reviews = self.reviews.filter(moderation_status='approved')
+        reviews = self.reviews.filter(moderation_status='APPROVED')
         if reviews.exists():
             self.average_rating = reviews.aggregate(
                 avg_rating=models.Avg('overall_rating')
@@ -84,9 +84,9 @@ class Review(models.Model):
     Model representing a review of a place.
     """
     MODERATION_STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('approved', 'Approved'),
-        ('rejected', 'Rejected'),
+        ('PENDING', 'Pending'),
+        ('APPROVED', 'Approved'),
+        ('REJECTED', 'Rejected'),
     ]
     
     place = models.ForeignKey(Place, on_delete=models.CASCADE, related_name='reviews')
@@ -120,7 +120,7 @@ class Review(models.Model):
     moderation_status = models.CharField(
         max_length=20,
         choices=MODERATION_STATUS_CHOICES,
-        default='pending'
+        default='PENDING'
     )
     moderation_comment = models.TextField(blank=True)
     moderated_at = models.DateTimeField(null=True, blank=True)
@@ -157,9 +157,9 @@ class Photo(models.Model):
     Model representing a photo of a place.
     """
     MODERATION_STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('approved', 'Approved'),
-        ('rejected', 'Rejected'),
+        ('PENDING', 'Pending'),
+        ('APPROVED', 'Approved'),
+        ('REJECTED', 'Rejected'),
     ]
     
     place = models.ForeignKey(Place, on_delete=models.CASCADE, related_name='photos')
@@ -176,7 +176,7 @@ class Photo(models.Model):
     moderation_status = models.CharField(
         max_length=20,
         choices=MODERATION_STATUS_CHOICES,
-        default='pending'
+        default='PENDING'
     )
     moderation_comment = models.TextField(blank=True)
     moderated_at = models.DateTimeField(null=True, blank=True)

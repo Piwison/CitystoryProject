@@ -127,7 +127,7 @@ class FullTextSearchView(APIView):
             valid_fields = ['name', 'description', 'address']
         
         # Get all approved places
-        queryset = Place.objects.filter(moderation_status='approved')
+        queryset = Place.objects.filter(moderation_status='APPROVED')
         
         # Create a weighted search vector
         search_vectors = []
@@ -277,7 +277,7 @@ class CombinedSearchView(APIView):
         sort = request.query_params.get('sort', 'relevance')
         
         # Start with all approved places
-        queryset = Place.objects.filter(moderation_status='approved')
+        queryset = Place.objects.filter(moderation_status='APPROVED')
         
         # Apply text search if provided
         if query:

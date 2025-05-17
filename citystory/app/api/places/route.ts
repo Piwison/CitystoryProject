@@ -36,7 +36,7 @@ export async function POST(req: Request) {
         features: validatedData.features ?? [],
         photos: validatedData.photos ?? [],
         userId: session.user.email,
-        status: "pending", // Places need approval before being public
+        status: "PENDING", // Places need approval before being public
       }
     })
 

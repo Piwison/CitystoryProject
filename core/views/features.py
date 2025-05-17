@@ -127,7 +127,7 @@ class FeatureViewSet(viewsets.ModelViewSet):
         Return all places with this feature.
         """
         feature = self.get_object()
-        places = feature.places.filter(moderation_status='approved')
+        places = feature.places.filter(moderation_status='APPROVED')
         
         from core.serializers import PlaceSerializer
         serializer = PlaceSerializer(places, many=True)

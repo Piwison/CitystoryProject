@@ -67,7 +67,7 @@ class BadgeModelTest(TestCase):
             type="restaurant",
             price_range="1000",
             user=self.user,
-            moderation_status="approved"
+            moderation_status="APPROVED"
         )
         
         # Now user should meet the first place requirement
@@ -82,7 +82,7 @@ class BadgeModelTest(TestCase):
             service_rating=4,
             value_rating=4,
             comment="This is a test review",
-            moderation_status="approved"
+            moderation_status="APPROVED"
         )
         
         # Now user should meet the first review requirement
@@ -110,7 +110,7 @@ class BadgeModelTest(TestCase):
             type="restaurant",
             price_range="1000",
             user=self.user,
-            moderation_status="approved"
+            moderation_status="APPROVED"
         )
         
         # User should now be eligible for the first place badge
@@ -134,7 +134,7 @@ class BadgeModelTest(TestCase):
             service_rating=4,
             value_rating=4,
             comment="This is a test review",
-            moderation_status="approved"
+            moderation_status="APPROVED"
         )
         
         # User should now be eligible for the first review badge
@@ -504,7 +504,7 @@ class BadgeAPITest(APITestCase):
             type="restaurant",
             price_range="1000",
             user=self.user,
-            moderation_status="approved"
+            moderation_status="APPROVED"
         )
         
         review = Review.objects.create(
@@ -515,7 +515,7 @@ class BadgeAPITest(APITestCase):
             service_rating=4,
             value_rating=4,
             comment="This is a test review",
-            moderation_status="approved"
+            moderation_status="APPROVED"
         )
         
         url = reverse('user-badge-check-eligibility')

@@ -37,6 +37,7 @@ import {
 } from '@/components/ui/card';
 import { PhotoUpload } from './PhotoUpload';
 import PlaceTypeSelector from './PlaceTypeSelector';
+import type { PlaceType } from '@/types';
 
 // Taipei districts
 const TAIPEI_DISTRICTS = [
@@ -59,9 +60,9 @@ const PRICE_RANGES = [
 
 // Status options (for admins)
 const STATUS_OPTIONS = [
-  { value: 'pending', label: 'Pending Review' },
-  { value: 'approved', label: 'Approved' },
-  { value: 'rejected', label: 'Rejected' },
+  { value: 'PENDING', label: 'Pending Review' },
+  { value: 'APPROVED', label: 'Approved' },
+  { value: 'REJECTED', label: 'Rejected' },
 ];
 
 // Define full Place type
@@ -76,7 +77,7 @@ interface Place {
   googleMapsLink?: string;
   slug?: string;
   features?: string[];
-  status?: 'pending' | 'approved' | 'rejected';
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
   coordinates?: {
     lat: number;
     lng: number;
@@ -94,8 +95,8 @@ const placeFormSchema = z.object({
   googleMapsLink: z.string().url('Invalid Google Maps URL').optional().or(z.literal('')),
   features: z.array(z.string()).optional(),
   slug: z.string().optional(),
-  customSlug: z.boolean().default(false),
-  status: z.enum(['pending', 'approved', 'rejected']).default('pending'),
+  customSlug: z.boolean(),
+  status: z.enum(['PENDING', 'APPROVED', 'REJECTED']).optional(),
 });
 
 type PlaceFormData = z.infer<typeof placeFormSchema>;
@@ -118,20 +119,27 @@ export function PlaceForm({
   const [generatedSlug, setGeneratedSlug] = useState('');
   const [placeType, setPlaceType] = useState(initialData?.type || 'restaurant');
 
+  const validTypes: PlaceType[] = [
+    'restaurant', 'cafe', 'bar', 'hotel', 'attraction', 'shopping'
+  ];
+  const safeType: PlaceType = validTypes.includes(initialData?.type as PlaceType)
+    ? (initialData?.type as PlaceType)
+    : 'restaurant';
+
   const form = useForm<PlaceFormData>({
     resolver: zodResolver(placeFormSchema),
     defaultValues: {
       name: initialData?.name || '',
       address: initialData?.address || '',
       district: initialData?.district || '',
-      type: initialData?.type || 'restaurant',
+      type: safeType,
       priceRange: initialData?.priceRange || '0',
       description: initialData?.description || '',
       googleMapsLink: initialData?.googleMapsLink || '',
       features: initialData?.features || [],
       slug: initialData?.slug || '',
-      customSlug: !!initialData?.slug,
-      status: initialData?.status || 'pending',
+      customSlug: Boolean(initialData && "customSlug" in initialData ? initialData.customSlug : false),
+      status: initialData?.status || 'PENDING',
     },
   });
 
@@ -191,21 +199,21 @@ export function PlaceForm({
   };
 
   return (
-    <Form {...form}>
+    <Form<PlaceFormData> {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
         <Card>
           <CardHeader>
             <CardTitle>Basic Information</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <FormField
+            <FormField<PlaceFormData>
               control={form.control}
               name="name"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Place Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="Enter place name" {...field} />
+                    <Input placeholder="Enter place name" {...field} value={typeof field.value === 'string' ? field.value : ''} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -213,7 +221,7 @@ export function PlaceForm({
             />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
+              <FormField<PlaceFormData>
                 control={form.control}
                 name="address"
                 render={({ field }) => (
@@ -221,7 +229,7 @@ export function PlaceForm({
                     <FormLabel>Address</FormLabel>
                     <div className="flex">
                       <FormControl>
-                        <Input placeholder="Enter full address" {...field} />
+                        <Input placeholder="Enter full address" {...field} value={typeof field.value === 'string' ? field.value : ''} />
                       </FormControl>
                       <Button 
                         type="button"
@@ -245,7 +253,7 @@ export function PlaceForm({
                 )}
               />
 
-              <FormField
+              <FormField<PlaceFormData>
                 control={form.control}
                 name="district"
                 render={({ field }) => (
@@ -253,7 +261,7 @@ export function PlaceForm({
                     <FormLabel>District</FormLabel>
                     <Select
                       onValueChange={field.onChange}
-                      defaultValue={field.value}
+                      defaultValue={typeof field.value === 'string' ? field.value : ''}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -274,7 +282,7 @@ export function PlaceForm({
               />
             </div>
 
-            <FormField
+            <FormField<PlaceFormData>
               control={form.control}
               name="googleMapsLink"
               render={({ field }) => (
@@ -284,7 +292,7 @@ export function PlaceForm({
                     <Input 
                       placeholder="Enter Google Maps URL" 
                       {...field} 
-                      value={field.value || ''}
+                      value={typeof field.value === 'string' ? field.value : ''}
                     />
                   </FormControl>
                   <FormMessage />
@@ -292,7 +300,7 @@ export function PlaceForm({
               )}
             />
 
-            <FormField
+            <FormField<PlaceFormData>
               control={form.control}
               name="description"
               render={({ field }) => (
@@ -303,7 +311,7 @@ export function PlaceForm({
                       placeholder="Describe this place..." 
                       className="min-h-[100px]" 
                       {...field} 
-                      value={field.value || ''}
+                      value={typeof field.value === 'string' ? field.value : ''}
                     />
                   </FormControl>
                   <FormMessage />
@@ -318,7 +326,7 @@ export function PlaceForm({
             <CardTitle>Place Details</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            <FormField
+            <FormField<PlaceFormData>
               control={form.control}
               name="type"
               render={({ field }) => (
@@ -331,7 +339,7 @@ export function PlaceForm({
 
             <Separator />
 
-            <FormField
+            <FormField<PlaceFormData>
               control={form.control}
               name="priceRange"
               render={({ field }) => (
@@ -339,7 +347,7 @@ export function PlaceForm({
                   <FormLabel>Price Range</FormLabel>
                   <Select
                     onValueChange={field.onChange}
-                    defaultValue={field.value}
+                    defaultValue={typeof field.value === 'string' ? field.value : ''}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -360,14 +368,14 @@ export function PlaceForm({
             />
 
             <div className="space-y-4">
-              <FormField
+              <FormField<PlaceFormData>
                 control={form.control}
                 name="customSlug"
                 render={({ field }) => (
                   <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                     <FormControl>
                       <Checkbox
-                        checked={field.value}
+                        checked={!!field.value}
                         onCheckedChange={field.onChange}
                       />
                     </FormControl>
@@ -384,7 +392,7 @@ export function PlaceForm({
               />
 
               {form.watch('customSlug') && (
-                <FormField
+                <FormField<PlaceFormData>
                   control={form.control}
                   name="slug"
                   render={({ field }) => (
@@ -395,7 +403,7 @@ export function PlaceForm({
                           <span className="text-sm text-gray-500 mr-2">
                             /places/
                           </span>
-                          <Input {...field} placeholder="my-custom-url" />
+                          <Input {...field} placeholder="my-custom-url" value={typeof field.value === 'string' ? field.value : ''} />
                         </div>
                       </FormControl>
                       <FormMessage />
@@ -415,7 +423,7 @@ export function PlaceForm({
             </div>
 
             {isAdmin && (
-              <FormField
+              <FormField<PlaceFormData>
                 control={form.control}
                 name="status"
                 render={({ field }) => (
@@ -423,7 +431,7 @@ export function PlaceForm({
                     <FormLabel>Status</FormLabel>
                     <Select
                       onValueChange={field.onChange}
-                      defaultValue={field.value}
+                      defaultValue={typeof field.value === 'string' ? field.value : ''}
                     >
                       <FormControl>
                         <SelectTrigger>

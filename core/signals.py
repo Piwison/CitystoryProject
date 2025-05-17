@@ -20,7 +20,7 @@ def handle_review_moderation(sender, instance, created, **kwargs):
         title = None
         message = None
         
-        if instance.moderation_status == 'approved':
+        if instance.moderation_status == 'APPROVED':
             notification_type = 'review_approved'
             title = 'Your Review Has Been Approved!'
             message = f'Your review for "{instance.place.name}" has been approved and is now visible to all users.'
@@ -34,7 +34,7 @@ def handle_review_moderation(sender, instance, created, **kwargs):
                 description=f"Review for {instance.place.name} approved"
             )
             
-        elif instance.moderation_status == 'rejected':
+        elif instance.moderation_status == 'REJECTED':
             notification_type = 'review_rejected'
             title = 'Your Review Needs Attention'
             
@@ -71,7 +71,7 @@ def handle_photo_moderation(sender, instance, created, **kwargs):
         title = None
         message = None
         
-        if instance.moderation_status == 'approved':
+        if instance.moderation_status == 'APPROVED':
             notification_type = 'photo_approved'
             title = 'Your Photo Has Been Approved!'
             message = f'Your photo for "{instance.place.name}" has been approved and is now visible to all users.'
@@ -85,7 +85,7 @@ def handle_photo_moderation(sender, instance, created, **kwargs):
                 description=f"Photo for {instance.place.name} approved"
             )
             
-        elif instance.moderation_status == 'rejected':
+        elif instance.moderation_status == 'REJECTED':
             notification_type = 'photo_rejected'
             title = 'Your Photo Needs Attention'
             
@@ -122,7 +122,7 @@ def handle_place_moderation(sender, instance, created, **kwargs):
         title = None
         message = None
         
-        if instance.moderation_status == 'approved':
+        if instance.moderation_status == 'APPROVED':
             notification_type = 'place_approved'
             title = 'Your Place Has Been Approved!'
             message = f'Your place "{instance.name}" has been approved and is now visible to all users.'
@@ -136,7 +136,7 @@ def handle_place_moderation(sender, instance, created, **kwargs):
                 description=f"Place {instance.name} approved"
             )
             
-        elif instance.moderation_status == 'rejected':
+        elif instance.moderation_status == 'REJECTED':
             notification_type = 'place_rejected'
             title = 'Your Place Needs Attention'
             

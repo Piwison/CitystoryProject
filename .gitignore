@@ -75,3 +75,4 @@ Thumbs.db
 # Added by Claude Task Master
 .env
 .env.local
+.taskmaster.env

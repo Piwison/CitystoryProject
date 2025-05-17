@@ -27,7 +27,7 @@ class BaseModerationViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         """Filter queryset based on moderation status."""
         queryset = self.queryset
-        status = self.request.query_params.get('status', 'pending')
+        status = self.request.query_params.get('status', 'PENDING')
         if status:
             queryset = queryset.filter(moderation_status=status)
         return queryset.select_related('moderator')

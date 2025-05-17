@@ -212,9 +212,9 @@ class PlaceSerializer(serializers.ModelSerializer):
     def get_status_display(self, obj):
         """Get a user-friendly status display"""
         status_map = {
-            'pending': 'Pending Approval',
-            'approved': 'Approved',
-            'rejected': 'Rejected'
+            'PENDING': 'Pending Approval',
+            'APPROVED': 'Approved',
+            'REJECTED': 'Rejected'
         }
         return status_map.get(obj.moderation_status, obj.moderation_status)
 
@@ -283,9 +283,9 @@ class ReviewSerializer(serializers.ModelSerializer):
     def get_status_display(self, obj):
         """Get a user-friendly status display"""
         status_map = {
-            'pending': 'Pending Approval',
-            'approved': 'Approved',
-            'rejected': 'Rejected'
+            'PENDING': 'Pending Approval',
+            'APPROVED': 'Approved',
+            'REJECTED': 'Rejected'
         }
         return status_map.get(obj.moderation_status, obj.moderation_status)
 
@@ -382,9 +382,9 @@ class PhotoSerializer(serializers.ModelSerializer):
     def get_status_display(self, obj):
         """Get a user-friendly status display"""
         status_map = {
-            'pending': 'Pending Approval',
-            'approved': 'Approved',
-            'rejected': 'Rejected'
+            'PENDING': 'Pending Approval',
+            'APPROVED': 'Approved',
+            'REJECTED': 'Rejected'
         }
         return status_map.get(obj.moderation_status, obj.moderation_status)
 

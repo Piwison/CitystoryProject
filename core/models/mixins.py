@@ -16,15 +16,15 @@ class ModerationMixin(models.Model):
     Abstract base class mixin that provides moderation status field and related functionality.
     """
     MODERATION_STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('approved', 'Approved'),
-        ('rejected', 'Rejected'),
+        ('PENDING', 'Pending'),
+        ('APPROVED', 'Approved'),
+        ('REJECTED', 'Rejected'),
     ]
 
     moderation_status = models.CharField(
         max_length=20,
         choices=MODERATION_STATUS_CHOICES,
-        default='pending'
+        default='PENDING'
     )
     moderated_at = models.DateTimeField(null=True, blank=True)
     moderator = models.ForeignKey(
@@ -41,14 +41,14 @@ class ModerationMixin(models.Model):
 
     def approve(self, moderator):
         """Approve the content"""
-        self.moderation_status = 'approved'
+        self.moderation_status = 'APPROVED'
         self.moderated_at = timezone.now()
         self.moderator = moderator
         self.save()
 
     def reject(self, moderator):
         """Reject the content"""
-        self.moderation_status = 'rejected'
+        self.moderation_status = 'REJECTED'
         self.moderated_at = timezone.now()
         self.moderator = moderator
         self.save()
@@ -56,17 +56,17 @@ class ModerationMixin(models.Model):
     @property
     def is_approved(self):
         """Check if content is approved"""
-        return self.moderation_status == 'approved'
+        return self.moderation_status == 'APPROVED'
 
     @property
     def is_rejected(self):
         """Check if content is rejected"""
-        return self.moderation_status == 'rejected'
+        return self.moderation_status == 'REJECTED'
 
     @property
     def is_pending(self):
         """Check if content is pending moderation"""
-        return self.moderation_status == 'pending'
+        return self.moderation_status == 'PENDING'
 
     def update_moderation_status(self, status, moderator=None, comment=''):
         """Update moderation status with optional comment"""

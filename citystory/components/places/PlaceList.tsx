@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Place, PlaceFilters, PaginatedResponse } from '@/types/place';
-import { placeService } from '@/lib/services/placeService';
+import { getManagedPlaces } from '@/lib/api/services/placeManagementService';
 import { Card } from '@/components/ui/card';
 import { Select } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
@@ -54,7 +54,7 @@ export function PlaceList({ onPlaceClick }: PlaceListProps) {
         limit: filters.limit,
       };
       
-      const response = await placeService.getPlaces(apiFilters);
+      const response = await getManagedPlaces(apiFilters);
       
       if (!response || typeof response !== 'object') {
         throw new Error('Invalid response from server');
@@ -233,5 +233,4 @@ export function PlaceList({ onPlaceClick }: PlaceListProps) {
       )}
     </div>
   );
-} 
 } 

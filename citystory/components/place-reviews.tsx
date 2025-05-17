@@ -98,7 +98,7 @@ export default function PlaceReviews({ placeId, initialReviews = [], initialRati
 
   // Filter out non-approved reviews for non-owners
   const visibleReviews = reviews.filter(review => 
-    review.moderation_status === 'approved' || 
+    review.moderation_status === 'APPROVED' || 
     (user && (user.id === review.user_id || user.is_moderator))
   )
 
@@ -183,8 +183,8 @@ export default function PlaceReviews({ placeId, initialReviews = [], initialRati
                   <p className="text-sm text-gray-500">{new Date(review.date).toLocaleDateString()}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  {review.moderation_status !== 'approved' && (
-                    <Badge variant={review.moderation_status === 'pending' ? 'outline' : 'destructive'}>
+                  {review.moderation_status !== 'APPROVED' && (
+                    <Badge variant={review.moderation_status === 'PENDING' ? 'outline' : 'destructive'}>
                       {review.moderation_status}
                     </Badge>
                   )}

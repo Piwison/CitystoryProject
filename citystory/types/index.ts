@@ -95,7 +95,7 @@ export interface PlaceCreationPayload {
   googleMapsLink?: string;
   // Fields from "Enhanced Place Creation Form"
   slug?: string; // Optional if backend generates it
-  // status?: 'draft' | 'pending_approval' | 'published' | 'rejected'; // If admins/users can set initial status
+  // status?: 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED'; // If admins/users can set initial status
   tags?: string[]; // General tags
   // any other fields required for creation
 }
@@ -104,11 +104,11 @@ export type PlaceUpdatePayload = Partial<PlaceCreationPayload> & {
   // Potentially add specific fields that can only be updated, not created
   // or enforce certain fields during update if necessary.
   // For example, if slug cannot be changed after creation, it wouldn't be here.
-  moderationStatus?: 'pending_approval' | 'approved' | 'rejected'; // If this is part of place update by admins
+  moderationStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'DRAFT'; // If this is part of place update by admins
 };
 
 export interface ManagedPlace extends PlaceSearchResult {
-  moderationStatus?: 'pending_approval' | 'approved' | 'rejected' | 'draft';
+  moderationStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'DRAFT';
   // any other fields specific to a user's managed places list
   dateSubmitted?: string; // ISO date string
   lastUpdated?: string; // ISO date string

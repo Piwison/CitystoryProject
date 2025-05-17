@@ -40,7 +40,7 @@ class HelpfulVotesSystemTest(APITestCase):
             address='123 Test Street',
             district='xinyi',
             user=self.review_author,
-            moderation_status='approved'
+            moderation_status='APPROVED'
         )
         
         # Create a review

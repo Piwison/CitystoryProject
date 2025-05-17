@@ -110,7 +110,7 @@ export default function EditPlaceForm({ placeId }: EditPlaceFormProps) {
       priceRange: place?.priceLevel || 0,
       comment: place?.description || "",
       photos: place?.imageUrl ? [place.imageUrl] : [],
-      googleMapsLink: place?.googleMapsLink || place?.google_maps_link || "",
+      googleMapsLink: place?.googleMapsLink || "",
     },
   });
 
@@ -125,7 +125,7 @@ export default function EditPlaceForm({ placeId }: EditPlaceFormProps) {
         priceRange: place.priceLevel || 0,
         comment: place.description || "",
         photos: place.imageUrl ? [place.imageUrl] : [],
-        googleMapsLink: place.googleMapsLink || place.google_maps_link || "",
+        googleMapsLink: place.googleMapsLink || "",
       });
       setPhotos(place.imageUrl ? [place.imageUrl] : []);
       setSelectedFeatures(place.features || []);

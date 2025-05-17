@@ -68,7 +68,7 @@ class ReviewViewSet(viewsets.ModelViewSet, PlaceTypeReviewValidator):
         # Filter by permission level and moderation status
         if not user.is_authenticated:
             # Anonymous users can only see approved reviews
-            queryset = queryset.filter(moderation_status='approved')
+            queryset = queryset.filter(moderation_status='APPROVED')
         elif user.is_staff or user.is_superuser:
             # Staff can see all reviews
             pass
@@ -76,7 +76,7 @@ class ReviewViewSet(viewsets.ModelViewSet, PlaceTypeReviewValidator):
             # Regular authenticated users can see their own reviews + approved reviews
             queryset = queryset.filter(
                 Q(user=user) |  # Their own reviews (any status)
-                Q(moderation_status='approved')  # Approved reviews from others
+                Q(moderation_status='APPROVED')  # Approved reviews from others
             )
             
         return queryset

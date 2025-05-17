@@ -462,7 +462,7 @@ class PlaceViewSet(viewsets.ModelViewSet):
         # Filter by user permission level and moderation status
         if not user.is_authenticated:
             # Anonymous users can only see approved places
-            queryset = queryset.filter(moderation_status='approved')
+            queryset = queryset.filter(moderation_status='APPROVED')
         elif user.is_staff or user.is_superuser:
             # Staff can see all places
             pass
@@ -470,7 +470,7 @@ class PlaceViewSet(viewsets.ModelViewSet):
             # Regular authenticated users can see their own places + approved places
             queryset = queryset.filter(
                 Q(user=user) |  # Their own places (any status)
-                Q(moderation_status='approved')  # Approved places from others
+                Q(moderation_status='APPROVED')  # Approved places from others
             )
             
         # Annotate with helpful review count and feature count if search fields include them
@@ -505,7 +505,7 @@ class PlaceViewSet(viewsets.ModelViewSet):
             )
         
         place.draft = False
-        place.moderation_status = 'pending'
+        place.moderation_status = 'PENDING'
         place.save(update_fields=['draft', 'moderation_status'])
         
         # Invalidate relevant caches
@@ -647,8 +647,8 @@ class PlaceViewSet(viewsets.ModelViewSet):
         # Filter by moderation status for non-staff users
         if not request.user.is_staff:
             nearby_places = nearby_places.filter(
-                Q(moderation_status='approved') |
-                (Q(user=request.user) & ~Q(moderation_status='rejected'))
+                Q(moderation_status='APPROVED') |
+                (Q(user=request.user) & ~Q(moderation_status='REJECTED'))
             )
         
         # Calculate distance using the Haversine formula
@@ -682,7 +682,7 @@ class PlaceViewSet(viewsets.ModelViewSet):
         - Example: [{"name": "Da'an", "value": "daan", "count": 15}, ...]
         """
         # Start with all approved places for counting
-        base_queryset = Place.objects.filter(moderation_status='approved')
+        base_queryset = Place.objects.filter(moderation_status='APPROVED')
         
         # Get counts for each district
         district_counts = {}

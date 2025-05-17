@@ -3,7 +3,7 @@ export interface Place {
   name: string;
   description: string;
   location: string;
-  moderation_status: "pending" | "approved" | "rejected";
+  moderation_status: "PENDING" | "APPROVED" | "REJECTED";
   created_at: string;
   moderated_at?: string;
   moderator_id?: string;
@@ -20,7 +20,7 @@ export interface Review {
   service: number;
   value: number;
   cleanliness: number;
-  moderation_status: "pending" | "approved" | "rejected";
+  moderation_status: "PENDING" | "APPROVED" | "REJECTED";
   created_at: string;
   moderated_at?: string;
   moderator_id?: string;

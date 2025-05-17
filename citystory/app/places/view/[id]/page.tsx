@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { placeService } from '@/lib/services/placeService';
+import { getManagedPlaceDetails } from '@/lib/api/services/placeManagementService';
 
 export default async function PlacePage({ params }: any) {
   if (!params) {
@@ -8,7 +8,7 @@ export default async function PlacePage({ params }: any) {
   const { id } = params;
 
   try {
-    const place = await placeService.getPlaceById(id);
+    const place = await getManagedPlaceDetails(id);
     
     return (
       <div className="container max-w-4xl py-8">
@@ -16,10 +16,10 @@ export default async function PlacePage({ params }: any) {
         <div className="space-y-4">
           <p>{place.description}</p>
           <p className="text-muted-foreground">{place.address}</p>
-          <p>Category: {place.category}</p>
+          <p>Category: {place.type}</p>
         </div>
         
-        {place.photos.length > 0 && (
+        {place.photos && place.photos.length > 0 && (
           <div className="mt-8">
             <h2 className="text-2xl font-semibold mb-4">Photos</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

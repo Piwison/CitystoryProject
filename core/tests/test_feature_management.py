@@ -168,7 +168,7 @@ class FeatureAPITest(APITestCase):
             name="Italian Restaurant",
             type="restaurant",
             price_range="1000",
-            moderation_status="approved",
+            moderation_status="APPROVED",
             user=self.place_owner
         )
         

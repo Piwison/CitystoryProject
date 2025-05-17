@@ -6,9 +6,9 @@ from .mixins import TimestampMixin, ModerationMixin
 
 class Review(TimestampMixin, ModerationMixin):
     MODERATION_STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('approved', 'Approved'),
-        ('rejected', 'Rejected'),
+        ('PENDING', 'Pending'),
+        ('APPROVED', 'Approved'),
+        ('REJECTED', 'Rejected'),
     ]
 
     place = models.ForeignKey('core.Place', on_delete=models.CASCADE, related_name='reviews')
@@ -47,5 +47,5 @@ class Review(TimestampMixin, ModerationMixin):
         super().save(*args, **kwargs)
         
         # Only update place rating if this review is approved
-        if self.moderation_status == 'approved':
+        if self.moderation_status == 'APPROVED':
             self.place.update_average_ratings() 

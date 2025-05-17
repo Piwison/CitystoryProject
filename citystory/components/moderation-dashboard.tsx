@@ -28,7 +28,7 @@ import { CheckCircle, XCircle, AlertCircle } from "lucide-react"
 interface ModerationItem {
   id: string
   type: 'place' | 'review' | 'photo'
-  status: 'pending' | 'approved' | 'rejected'
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'
   comment?: string
   created_at: string
   updated_at: string
@@ -42,7 +42,7 @@ export default function ModerationDashboard() {
   const { toast } = useToast()
   const moderationService = ModerationService.getInstance()
 
-  const [activeTab, setActiveTab] = useState<string>("pending")
+  const [activeTab, setActiveTab] = useState<string>("PENDING")
   const [selectedType, setSelectedType] = useState<string>("all")
   const [items, setItems] = useState<ModerationItem[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -50,7 +50,7 @@ export default function ModerationDashboard() {
   const [selectedItem, setSelectedItem] = useState<ModerationItem | null>(null)
 
   useEffect(() => {
-    if (user?.is_moderator) {
+    if (user?.isModerator) {
       loadItems()
     }
   }, [activeTab, selectedType])
@@ -59,7 +59,7 @@ export default function ModerationDashboard() {
     setIsLoading(true)
     try {
       let response
-      if (activeTab === "pending") {
+      if (activeTab === "PENDING") {
         response = await moderationService.getPendingItems({
           type: selectedType !== "all" ? selectedType as 'place' | 'review' | 'photo' : undefined
         })
@@ -69,7 +69,12 @@ export default function ModerationDashboard() {
           status: activeTab as 'approved' | 'rejected'
         })
       }
-      setItems(response.items)
+      setItems(
+        response.data.items.map((item: any) => ({
+          ...item,
+          status: item.status.toUpperCase(),
+        }))
+      )
     } catch (error) {
       console.error("Error loading moderation items:", error)
       toast({
@@ -82,19 +87,19 @@ export default function ModerationDashboard() {
     }
   }
 
-  const handleModerate = async (item: ModerationItem, status: 'approved' | 'rejected') => {
+  const handleModerate = async (item: ModerationItem, status: 'APPROVED' | 'REJECTED') => {
     try {
       await moderationService.updateStatus(
         item.type,
         item.id,
-        status,
+        status.toLowerCase() as "approved" | "rejected",
         moderationComment
       )
       
       toast({
         title: `Content ${status}`,
         description: `The ${item.type} has been ${status}.`,
-        variant: status === 'approved' ? 'default' : 'destructive'
+        variant: status === 'APPROVED' ? 'default' : 'destructive'
       })
 
       // Refresh the list
@@ -111,7 +116,7 @@ export default function ModerationDashboard() {
     }
   }
 
-  if (!user?.is_moderator) {
+  if (!user?.isModerator) {
     return (
       <Card>
         <CardContent className="p-6 text-center">
@@ -156,12 +161,12 @@ export default function ModerationDashboard() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="pending">Pending</TabsTrigger>
-          <TabsTrigger value="approved">Approved</TabsTrigger>
-          <TabsTrigger value="rejected">Rejected</TabsTrigger>
+          <TabsTrigger value="PENDING">Pending</TabsTrigger>
+          <TabsTrigger value="APPROVED">Approved</TabsTrigger>
+          <TabsTrigger value="REJECTED">Rejected</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="pending" className="space-y-4">
+        <TabsContent value="PENDING" className="space-y-4">
           {items.map((item) => (
             <Card key={item.id}>
               <CardContent className="p-6">
@@ -203,7 +208,7 @@ export default function ModerationDashboard() {
                     <>
                       <Button
                         variant="outline"
-                        onClick={() => handleModerate(item, 'rejected')}
+                        onClick={() => handleModerate(item, 'REJECTED')}
                         className="text-red-600 hover:text-red-700"
                       >
                         <XCircle className="h-4 w-4 mr-2" />
@@ -211,7 +216,7 @@ export default function ModerationDashboard() {
                       </Button>
                       <Button
                         variant="outline"
-                        onClick={() => handleModerate(item, 'approved')}
+                        onClick={() => handleModerate(item, 'APPROVED')}
                         className="text-green-600 hover:text-green-700"
                       >
                         <CheckCircle className="h-4 w-4 mr-2" />
@@ -235,7 +240,7 @@ export default function ModerationDashboard() {
           )}
         </TabsContent>
 
-        <TabsContent value="approved" className="space-y-4">
+        <TabsContent value="APPROVED" className="space-y-4">
           {items.map((item) => (
             <Card key={item.id}>
               <CardContent className="p-6">
@@ -274,7 +279,7 @@ export default function ModerationDashboard() {
           )}
         </TabsContent>
 
-        <TabsContent value="rejected" className="space-y-4">
+        <TabsContent value="REJECTED" className="space-y-4">
           {items.map((item) => (
             <Card key={item.id}>
               <CardContent className="p-6">

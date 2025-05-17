@@ -41,7 +41,7 @@ class PlaceStatusWorkflowTest(APITestCase):
             address='123 Test Street',
             district='xinyi',
             draft=True,
-            moderation_status='pending'
+            moderation_status='PENDING'
         )
         
         self.pending_place = Place.objects.create(
@@ -53,7 +53,7 @@ class PlaceStatusWorkflowTest(APITestCase):
             address='456 Test Avenue',
             district='daan',
             draft=False,
-            moderation_status='pending'
+            moderation_status='PENDING'
         )
         
         self.approved_place = Place.objects.create(
@@ -65,7 +65,7 @@ class PlaceStatusWorkflowTest(APITestCase):
             address='789 Test Boulevard',
             district='zhongshan',
             draft=False,
-            moderation_status='approved'
+            moderation_status='APPROVED'
         )
         
         self.rejected_place = Place.objects.create(
@@ -77,7 +77,7 @@ class PlaceStatusWorkflowTest(APITestCase):
             address='101 Test Road',
             district='songshan',
             draft=False,
-            moderation_status='rejected'
+            moderation_status='REJECTED'
         )
         
         # Set up API client
@@ -151,7 +151,7 @@ class PlaceStatusWorkflowTest(APITestCase):
         # Verify it was created as a draft with pending status
         place = Place.objects.get(id=place_id)
         self.assertTrue(place.draft)
-        self.assertEqual(place.moderation_status, 'pending')
+        self.assertEqual(place.moderation_status, 'PENDING')
         
         # 2. Submit place for review (publish)
         publish_url = reverse('place-publish', kwargs={'pk': place_id})
@@ -169,18 +169,18 @@ class PlaceStatusWorkflowTest(APITestCase):
         # Verify it's no longer a draft but still pending approval
         place.refresh_from_db()
         self.assertFalse(place.draft)
-        self.assertEqual(place.moderation_status, 'pending')
+        self.assertEqual(place.moderation_status, 'PENDING')
         
         # 3. Moderator approves the place
         self.client.force_authenticate(user=self.moderator)
         moderation_url = reverse('moderation-places-update-status', kwargs={'pk': place_id})
         
-        response = self.client.patch(moderation_url, {'status': 'approved'})
+        response = self.client.patch(moderation_url, {'status': 'APPROVED'})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         
         # Verify place is now approved
         place.refresh_from_db()
-        self.assertEqual(place.moderation_status, 'approved')
+        self.assertEqual(place.moderation_status, 'APPROVED')
         
         # Check that a notification was created
         notification = Notification.objects.filter(
@@ -196,7 +196,7 @@ class PlaceStatusWorkflowTest(APITestCase):
         
         moderation_url = reverse('moderation-places-update-status', kwargs={'pk': self.pending_place.id})
         response = self.client.patch(moderation_url, {
-            'status': 'rejected',
+            'status': 'REJECTED',
             'comment': 'Information is incomplete or inaccurate'
         })
         
@@ -204,7 +204,7 @@ class PlaceStatusWorkflowTest(APITestCase):
         
         # Verify place is now rejected
         self.pending_place.refresh_from_db()
-        self.assertEqual(self.pending_place.moderation_status, 'rejected')
+        self.assertEqual(self.pending_place.moderation_status, 'REJECTED')
         self.assertEqual(self.pending_place.moderation_comment, 'Information is incomplete or inaccurate')
         
         # Check that a notification was created

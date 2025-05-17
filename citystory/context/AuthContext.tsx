@@ -14,6 +14,7 @@ export interface User {
   bio?: string;
   createdAt?: string;
   lastLogin?: string;
+  isModerator?: boolean;
 }
 
 export type AuthType = 'credentials' | 'google' | null;

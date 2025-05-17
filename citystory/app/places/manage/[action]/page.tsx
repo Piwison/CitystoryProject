@@ -2,8 +2,8 @@
 
 import { notFound } from 'next/navigation';
 import { PlaceForm } from '@/components/places/PlaceForm';
-import { placeService } from '@/lib/services/placeService';
-import type { Place } from '@/types/place';
+import { getManagedPlaceDetails, createPlace, updatePlace } from '@/lib/api/services/placeManagementService';
+import type { ManagedPlace } from '@/types';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/ui/use-toast';
 import { useSession } from 'next-auth/react';
@@ -31,7 +31,7 @@ export default async function PlaceActionPage({ params, searchParams }: any) {
       notFound();
     }
     try {
-      place = await placeService.getPlaceById(searchParams.id);
+      place = await getManagedPlaceDetails(searchParams.id);
     } catch (error) {
       notFound();
     }
@@ -52,40 +52,31 @@ export default async function PlaceActionPage({ params, searchParams }: any) {
   );
 }
 
-function PlaceFormWrapper({ initialData }: { initialData?: Place }) {
+function PlaceFormWrapper({ initialData }: { initialData?: ManagedPlace }) {
   const router = useRouter();
   const { toast } = useToast();
   const { data: session } = useSession();
-  const accessToken = session?.accessToken || session?.user?.accessToken;
 
   const handleSubmit = async (data: PlaceFormData) => {
     try {
       if (initialData) {
-        await placeService.updatePlace(
+        await updatePlace(
           initialData.id,
           {
             ...data,
             description: "",
-            category: data.type,
-            latitude: 0,
-            longitude: 0,
-          },
-          accessToken
+          }
         );
         toast({
           title: 'Place updated',
           description: 'The place has been updated successfully.',
         });
       } else {
-        await placeService.createPlace(
+        await createPlace(
           {
             ...data,
             description: "",
-            category: data.type,
-            latitude: 0,
-            longitude: 0,
-          },
-          accessToken
+          }
         );
         toast({
           title: 'Place created',
@@ -103,11 +94,15 @@ function PlaceFormWrapper({ initialData }: { initialData?: Place }) {
     }
   };
 
+  // Note: Photo upload would need to be handled differently with the new service
+  // This is commented out as we'd need to implement it in placeManagementService
+  /*
   const handlePhotoUpload = async (files: File[]) => {
     if (!initialData) return;
     
     try {
-      await placeService.uploadPlacePhotos(initialData.id, files);
+      // Need to implement this in placeManagementService
+      // await uploadPlacePhotos(initialData.id, files);
       toast({
         title: 'Photos uploaded',
         description: 'The photos have been uploaded successfully.',
@@ -120,12 +115,14 @@ function PlaceFormWrapper({ initialData }: { initialData?: Place }) {
       });
     }
   };
+  */
 
   return (
     <PlaceForm
       initialData={initialData}
       onSubmit={handleSubmit}
-      onPhotoUpload={initialData ? handlePhotoUpload : undefined}
+      // Removed photo upload until implemented in new service
+      // onPhotoUpload={initialData ? handlePhotoUpload : undefined}
     />
   );
 } 
