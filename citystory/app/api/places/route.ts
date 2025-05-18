@@ -33,7 +33,15 @@ export async function POST(req: Request) {
     const place = await db.place.create({
       data: {
         ...validatedData,
-        features: validatedData.features ?? [],
+        // features: validatedData.features ?? [], // Old way of handling features
+        // New way: Create PlaceFeature records to link Place and Feature
+        placeFeatures: validatedData.features ? {
+          create: validatedData.features.map((featureId: string) => ({
+            feature: {
+              connect: { id: featureId },
+            },
+          })),
+        } : undefined,
         photos: validatedData.photos ?? [],
         userId: session.user.email,
         status: "PENDING", // Places need approval before being public
@@ -41,7 +49,7 @@ export async function POST(req: Request) {
     })
 
     return NextResponse.json(place)
-  } catch (error) {
+  } catch (error: any) { // Explicitly type error as any to resolve TypeScript error
     if (error instanceof z.ZodError) {
       return new NextResponse(JSON.stringify(error.issues), { status: 400 })
     }
@@ -80,16 +88,24 @@ export async function GET(req: Request) {
     }
 
     // Get total count for pagination
-    const total = await db.place.count({ where: { status: "APPROVED" } })
+    const total = await db.place.count({ where: where }) // Use the dynamic where for accurate total count
     
     // Get places for current page
     const items = await db.place.findMany({
-      where: { status: "APPROVED" },
+      where: where, // Fix: Use the dynamically constructed 'where' clause
       skip,
       take: limit,
       orderBy: {
         createdAt: 'desc'
       },
+      include: { // Add: Include photos and features according to schema.prisma
+        photos: true, // Assumes PlacePhoto is the correct relation for photos
+        placeFeatures: {   // Corrected: 'features' changed to 'placeFeatures'
+          include: {
+            feature: true // Include the actual Feature model from PlaceFeature
+          }
+        }
+      }
     })
 
     return NextResponse.json({
