@@ -25,8 +25,10 @@ export interface RegisterData {
 }
 
 export interface AuthResponse {
-  token: string;
-  refreshToken: string;
+  token?: string;
+  access?: string;
+  refreshToken?: string;
+  refresh?: string;
   user: User;
 }
 

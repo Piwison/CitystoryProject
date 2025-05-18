@@ -49,9 +49,9 @@ export default function PlaceReviews({ placeId, initialReviews = [], initialRati
     setIsLoading(true)
     try {
       const response = await reviewService.getPlaceReviews(placeId)
-      setReviews(response.reviews)
+      setReviews(response.data.reviews)
       // Calculate average rating from reviews
-      const avgRating = response.reviews.reduce((sum, review) => sum + review.rating, 0) / response.reviews.length
+      const avgRating = response.data.reviews.reduce((sum, review) => sum + review.rating, 0) / response.data.reviews.length
       setRating(avgRating || 0)
     } catch (error) {
       console.error("Error loading reviews:", error)
@@ -99,7 +99,7 @@ export default function PlaceReviews({ placeId, initialReviews = [], initialRati
   // Filter out non-approved reviews for non-owners
   const visibleReviews = reviews.filter(review => 
     review.moderation_status === 'APPROVED' || 
-    (user && (user.id === review.user_id || user.is_moderator))
+    (user && (user.id === review.user_id || user.isModerator))
   )
 
   // Calculate rating distribution
@@ -127,7 +127,7 @@ export default function PlaceReviews({ placeId, initialReviews = [], initialRati
           <div className="flex items-center mb-6">
             <div className="text-5xl font-bold text-[#112D4E] mr-4">{rating.toFixed(1)}</div>
             <div>
-              <StarRating value={rating} readOnly size="md" />
+              <StarRating value={rating} readOnly size="md" onChange={() => {}} />
               <p className="text-sm text-gray-500 mt-1">{totalReviews} reviews</p>
             </div>
           </div>
@@ -188,7 +188,7 @@ export default function PlaceReviews({ placeId, initialReviews = [], initialRati
                       {review.moderation_status}
                     </Badge>
                   )}
-                  <StarRating value={review.rating} readOnly size="sm" />
+                  <StarRating value={review.rating} readOnly size="sm" onChange={() => {}} />
                 </div>
               </div>
               <p className="text-gray-700 mb-4">{review.comment}</p>

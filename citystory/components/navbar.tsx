@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 type User = { isModerator?: boolean } | null;
 
 const Navbar = () => {
-  const user: User = null; // Replace with actual user data
+  const user: User = { isModerator: false }; // Replace with actual user data
   const pathname: string = "/"; // Replace with actual pathname
 
   return (

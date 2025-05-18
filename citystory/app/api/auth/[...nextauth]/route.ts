@@ -72,23 +72,19 @@ export const authOptions: NextAuthOptions = {
         const tokens = await res.json();
         console.log("Tokens received:", tokens);
 
-        // 2. Use access token to get user info (list)
-        const userRes = await fetch(userProfileUrl, {
-          headers: { Authorization: `Bearer ${tokens.access}` },
-        });
-        if (!userRes.ok) {
-          console.log("User profile fetch failed:", await userRes.text());
+        // User object now comes directly from login response
+        if (!tokens.user) {
+          console.log("No user data in login response");
           return null;
         }
-        const users = await userRes.json();
-        const user = Array.isArray(users) ? users[0] : users;
-        if (!user) {
-          console.log("No user found in user-profile response");
-          return null;
-        }
-        // 3. Attach tokens to user object for session/jwt callbacks
-        user.accessToken = tokens.access;
-        user.refreshToken = tokens.refresh;
+        
+        // Add tokens to the user object
+        const user = {
+          ...tokens.user,
+          accessToken: tokens.access,
+          refreshToken: tokens.refresh,
+        };
+        
         return user;
       },
     }),
@@ -119,9 +115,17 @@ export const authOptions: NextAuthOptions = {
     },
     async jwt({ token, user, account, profile, isNewUser }) {
       console.log('[NextAuth] jwt callback input:', { token, user, account, profile, isNewUser });
-      // Optionally add user info to token
+      // Add user info to token when first authenticating
       if (user) {
-        token.user = user;
+        // Get clean user data and convert is_staff to isModerator
+        token.user = {
+          id: user.id,
+          name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email,
+          email: user.email,
+          isModerator: user.is_staff || false,
+          accessToken: user.accessToken,
+          refreshToken: user.refreshToken
+        };
       }
       // Persist Google access_token to the token
       if (account && account.provider === 'google' && account.access_token) {
@@ -132,13 +136,18 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token, user }) {
       console.log('[NextAuth] session callback input:', { session, token, user });
-      // Optionally add token user info to session
+      // Add token user info to session
       if (token?.user) {
-        session.user = token.user;
+        session.user = {
+          name: token.user.name,
+          email: token.user.email,
+          image: session.user?.image, // Preserve image if present
+          isModerator: token.user.isModerator
+        };
       }
       // Expose accessToken on the session
-      if (typeof token?.accessToken === "string") {
-        session.accessToken = token.accessToken;
+      if (token?.user?.accessToken) {
+        session.accessToken = token.user.accessToken;
       }
       console.log('[NextAuth] session callback output:', session);
       return session;

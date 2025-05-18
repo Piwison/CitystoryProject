@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
+import type { Prisma } from "@prisma/client"; // Import Prisma types
 import { authOptions } from "@/lib/auth/options"
-import { db } from "@/lib/db"
+import { PrismaClient, PlaceStatus, PlaceType } from "@prisma/client"
 import { z } from "zod"
 
 const placeSchema = z.object({
   name: z.string().min(2),
   address: z.string().min(5),
   placeType: z.string().min(1),
-  features: z.array(z.string()).optional(),
+  features: z.array(z.string()).optional(), // Array of feature IDs
   foodQuality: z.number().min(0).max(5),
   service: z.number().min(0).max(5),
   value: z.number().min(0).max(5),
@@ -16,9 +17,11 @@ const placeSchema = z.object({
   comment: z.string().min(10),
   priceRange: z.number().optional(),
   googleMapsLink: z.string().url().optional(),
-  photos: z.array(z.string()).optional(),
+  photos: z.array(z.string()).optional(), // Array of photo URLs
   overallRating: z.number()
 })
+
+const db = new PrismaClient()
 
 export async function POST(req: Request) {
   try {
@@ -27,25 +30,60 @@ export async function POST(req: Request) {
       return new NextResponse("Unauthorized: missing user email", { status: 401 })
     }
 
+    // Fetch the user by email to get their id
+    const user = await db.user.findUnique({ where: { email: session.user.email } });
+    if (!user) {
+      return new NextResponse("User not found", { status: 404 })
+    }
+
     const body = await req.json()
     const validatedData = placeSchema.parse(body)
+    const { features, photos, ...placeDataFields } = validatedData;
+
+    const placeCreateInput: Prisma.PlaceCreateInput = {
+      ...placeDataFields,
+      placeType: placeDataFields.placeType as PlaceType,
+      contributor: { connect: { id: user.id } }, // Connect by user id
+      status: PlaceStatus.PENDING_REVIEW,
+      photos: photos && photos.length > 0 ? {
+        create: photos.map(url => ({
+          url,
+          user: { connect: { id: user.id } }
+        }))
+      } : undefined,
+      features: features && features.length > 0 ? {
+        create: features.map(featureId => ({
+          feature: { connect: { id: featureId } }
+        }))
+      } : undefined,
+      reviews: {
+        create: [{
+          user: { connect: { id: user.id } },
+          foodQuality: validatedData.foodQuality,
+          service: validatedData.service,
+          value: validatedData.value,
+          cleanliness: validatedData.cleanliness,
+          comment: validatedData.comment,
+          overallRating: validatedData.overallRating
+        }]
+      }
+    };
 
     const place = await db.place.create({
-      data: {
-        ...validatedData,
-        features: validatedData.features ?? [],
-        photos: validatedData.photos ?? [],
-        userId: session.user.email,
-        status: "PENDING", // Places need approval before being public
+      data: placeCreateInput,
+      include: {
+        features: { include: { feature: true } },
+        photos: true,
+        reviews: true
       }
-    })
+    });
 
     return NextResponse.json(place)
   } catch (error) {
     if (error instanceof z.ZodError) {
       return new NextResponse(JSON.stringify(error.issues), { status: 400 })
     }
-    console.error("[PLACES_POST]", error)
+    console.error("[PLACES_POST] Error:", error) 
     return new NextResponse("Internal Error", { status: 500 })
   }
 }
@@ -53,54 +91,68 @@ export async function POST(req: Request) {
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
-    
-    // Parse pagination params
+
     const page = parseInt(searchParams.get("page") || "1")
     const limit = parseInt(searchParams.get("limit") || "10")
     const search = searchParams.get("search") || ""
     const category = searchParams.get("category")
-    
-    // Calculate offset
+
     const skip = (page - 1) * limit
 
-    // Build where clause
-    const where = {
-      AND: [
-        {
-          status: "APPROVED" // Only show approved places
-        },
-        search ? {
-          OR: [
-            { name: { contains: search, mode: "insensitive" } },
-            { address: { contains: search, mode: "insensitive" } }
-          ]
-        } : {},
-        category ? { placeType: category } : {}
-      ]
+    const whereClause: Prisma.PlaceWhereInput = {
+      status: PlaceStatus.APPROVED
+    };
+    if (search) {
+      whereClause.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { address: { contains: search, mode: "insensitive" } }
+      ];
+    }
+    if (category) {
+      whereClause.placeType = category as any; // Allow string for enum type if needed, or ensure type matches
     }
 
-    // Get total count for pagination
-    const total = await db.place.count({ where: { status: "APPROVED" } })
-    
-    // Get places for current page
+    const total = await db.place.count({ where: whereClause })
+
     const items = await db.place.findMany({
-      where: { status: "APPROVED" },
+      where: whereClause,
       skip,
       take: limit,
       orderBy: {
         createdAt: 'desc'
       },
+      include: {
+        photos: true,
+        reviews: {
+          select: { overallRating: true, id: true }
+        },
+        features: { 
+          select: {
+            feature: { select: { id: true, name: true, icon: true, featureType: true } } 
+          }
+        },
+        contributor: {
+          select: { id: true, name: true, email: true, avatar: true }
+        }
+      }
     })
 
+    // Map PlaceType enum to string for response if necessary, or ensure frontend expects enum values
+    const mappedItems = items.map(item => ({
+      ...item,
+      placeType: item.placeType as string, // Example: Cast back to string if frontend expects string
+      features: item.features.map(ft => ft.feature) // Flatten features
+    }));
+
     return NextResponse.json({
-      items,
+      items: mappedItems,
       page,
       limit,
       total,
       totalPages: Math.ceil(total / limit)
     })
   } catch (error) {
-    console.error("[PLACES_GET]", error)
+    console.error("[PLACES_GET] Error:", error)
     return new NextResponse("Internal Error", { status: 500 })
   }
 }

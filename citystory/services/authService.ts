@@ -38,16 +38,48 @@ class AuthService {
 
   public async login(credentials: LoginCredentials): Promise<AuthResponse> {
     const response = await api.post<AuthResponse>('/login/', credentials);
-    this.setTokens(response.data.token, response.data.refreshToken);
+    
+    // Handle response with access/refresh tokens
+    const token = response.data.token || response.data.access;
+    const refreshToken = response.data.refreshToken || response.data.refresh;
+    
+    if (!token || !refreshToken) {
+      console.error('Invalid auth response:', response.data);
+      throw new Error('Invalid authentication response');
+    }
+    
+    this.setTokens(token, refreshToken);
     this.setCurrentUser(response.data.user);
-    return response.data;
+    
+    // Return normalized data
+    return {
+      token,
+      refreshToken, 
+      user: response.data.user
+    };
   }
 
   public async register(data: RegisterData): Promise<AuthResponse> {
     const response = await api.post<AuthResponse>('register/', data);
-    this.setTokens(response.data.token, response.data.refreshToken);
+    
+    // Handle response with access/refresh tokens
+    const token = response.data.token || response.data.access;
+    const refreshToken = response.data.refreshToken || response.data.refresh;
+    
+    if (!token || !refreshToken) {
+      console.error('Invalid auth response:', response.data);
+      throw new Error('Invalid authentication response');
+    }
+    
+    this.setTokens(token, refreshToken);
     this.setCurrentUser(response.data.user);
-    return response.data;
+    
+    // Return normalized data
+    return {
+      token,
+      refreshToken,
+      user: response.data.user
+    };
   }
 
   public async logout(): Promise<void> {

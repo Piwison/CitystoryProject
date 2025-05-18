@@ -32,6 +32,12 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
         return token
 
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        # Add user info to the response
+        data['user'] = UserSerializer(self.user).data
+        return data
+
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=False, style={'input_type': 'password'})
     password_confirm = serializers.CharField(write_only=True, required=False, style={'input_type': 'password'})
