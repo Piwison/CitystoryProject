@@ -70,16 +70,25 @@ export async function POST(req: Request) {
     };
 
     const place = await db.place.create({
-      data: placeCreateInput,
-      include: {
-        features: { include: { feature: true } },
-        photos: true,
-        reviews: true
+      data: {
+        ...validatedData,
+        // features: validatedData.features ?? [], // Old way of handling features
+        // New way: Create PlaceFeature records to link Place and Feature
+        placeFeatures: validatedData.features ? {
+          create: validatedData.features.map((featureId: string) => ({
+            feature: {
+              connect: { id: featureId },
+            },
+          })),
+        } : undefined,
+        photos: validatedData.photos ?? [],
+        userId: session.user.email,
+        status: "PENDING", // Places need approval before being public
       }
     });
 
     return NextResponse.json(place)
-  } catch (error) {
+  } catch (error: any) { // Explicitly type error as any to resolve TypeScript error
     if (error instanceof z.ZodError) {
       return new NextResponse(JSON.stringify(error.issues), { status: 400 })
     }
@@ -112,37 +121,26 @@ export async function GET(req: Request) {
       whereClause.placeType = category as any; // Allow string for enum type if needed, or ensure type matches
     }
 
-    const total = await db.place.count({ where: whereClause })
-
+    // Get total count for pagination
+    const total = await db.place.count({ where: where }) // Use the dynamic where for accurate total count
+    
+    // Get places for current page
     const items = await db.place.findMany({
-      where: whereClause,
+      where: where, // Fix: Use the dynamically constructed 'where' clause
       skip,
       take: limit,
       orderBy: {
         createdAt: 'desc'
       },
-      include: {
-        photos: true,
-        reviews: {
-          select: { overallRating: true, id: true }
-        },
-        features: { 
-          select: {
-            feature: { select: { id: true, name: true, icon: true, featureType: true } } 
+      include: { // Add: Include photos and features according to schema.prisma
+        photos: true, // Assumes PlacePhoto is the correct relation for photos
+        placeFeatures: {   // Corrected: 'features' changed to 'placeFeatures'
+          include: {
+            feature: true // Include the actual Feature model from PlaceFeature
           }
-        },
-        contributor: {
-          select: { id: true, name: true, email: true, avatar: true }
         }
       }
     })
-
-    // Map PlaceType enum to string for response if necessary, or ensure frontend expects enum values
-    const mappedItems = items.map(item => ({
-      ...item,
-      placeType: item.placeType as string, // Example: Cast back to string if frontend expects string
-      features: item.features.map(ft => ft.feature) // Flatten features
-    }));
 
     return NextResponse.json({
       items: mappedItems,
