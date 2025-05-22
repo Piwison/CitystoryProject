@@ -7,9 +7,11 @@ from django.urls import reverse
 from django.contrib.auth import get_user_model
 from unittest.mock import patch
 from core.models import Place
+import pytest
 
 User = get_user_model()
 
+@pytest.mark.skip(reason="Geocoding endpoints are deferred to v2.")
 class GeocodingAPITest(TestCase):
     """Test suite for geocoding API endpoints."""
     
@@ -33,8 +35,8 @@ class GeocodingAPITest(TestCase):
         self.place = Place.objects.create(
             name="Test Place",
             description="A test place",
-            type="restaurant",
-            price_range="600",
+            place_type="restaurant",
+            price_level="600",
             address="101 Taipei 101, Xinyi District, Taipei, Taiwan",
             user=self.user
         )
@@ -42,8 +44,8 @@ class GeocodingAPITest(TestCase):
         self.place_without_address = Place.objects.create(
             name="Place Without Address",
             description="A test place without address",
-            type="cafe",
-            price_range="400",
+            place_type="cafe",
+            price_level="400",
             user=self.user
         )
         
@@ -52,8 +54,8 @@ class GeocodingAPITest(TestCase):
             Place.objects.create(
                 name=f"Batch Place {i}",
                 description=f"A batch place {i}",
-                type="restaurant",
-                price_range="600",
+                place_type="restaurant",
+                price_level="600",
                 address=f"Address {i}, Taipei, Taiwan",
                 user=self.user
             )

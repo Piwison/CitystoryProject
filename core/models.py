@@ -2,71 +2,9 @@ from django.db import models
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator
-from .choices import PLACE_TYPE_CHOICES, PRICE_RANGE_CHOICES
+from .choices import PLACE_TYPE_CHOICES, PRICE_LEVEL_CHOICES
 
 User = get_user_model()
-
-class Place(models.Model):
-    """
-    Model representing a place (restaurant, cafe, bar, etc.).
-    """
-    TYPE_CHOICES = PLACE_TYPE_CHOICES
-    PRICE_RANGES = PRICE_RANGE_CHOICES
-    
-    MODERATION_STATUS_CHOICES = [
-        ('PENDING', 'Pending'),
-        ('APPROVED', 'Approved'),
-        ('REJECTED', 'Rejected'),
-    ]
-    
-    name = models.CharField(max_length=255)
-    description = models.TextField()
-    type = models.CharField(max_length=20, choices=TYPE_CHOICES)
-    price_range = models.CharField(max_length=5, choices=PRICE_RANGES)
-    address = models.CharField(max_length=255)
-    city = models.CharField(max_length=100)
-    state = models.CharField(max_length=2)
-    zip_code = models.CharField(max_length=10)
-    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='owned_places')
-    features = models.ManyToManyField('Feature', related_name='places', blank=True)
-    average_rating = models.FloatField(default=0.0)
-    total_reviews = models.PositiveIntegerField(default=0)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    # Moderation fields
-    moderation_status = models.CharField(
-        max_length=20,
-        choices=MODERATION_STATUS_CHOICES,
-        default='PENDING'
-    )
-    moderation_comment = models.TextField(blank=True)
-    moderated_at = models.DateTimeField(null=True, blank=True)
-    moderator = models.ForeignKey(
-        User,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='moderated_places'
-    )
-    
-    def __str__(self):
-        return self.name
-    
-    def update_average_rating(self):
-        """Update the average rating based on all approved reviews."""
-        reviews = self.reviews.filter(moderation_status='APPROVED')
-        if reviews.exists():
-            self.average_rating = reviews.aggregate(
-                avg_rating=models.Avg('overall_rating')
-            )['avg_rating']
-            self.total_reviews = reviews.count()
-        else:
-            self.average_rating = 0.0
-            self.total_reviews = 0
-        self.save()
 
 class Feature(models.Model):
     """

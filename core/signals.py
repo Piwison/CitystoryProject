@@ -2,7 +2,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.contrib.contenttypes.models import ContentType
 from core.models.review import Review
-from core.models.photo import Photo
+from core.models.photo import PlacePhoto
 from core.models.place import Place
 from core.models.notification import Notification
 from core.models.helpful_vote import HelpfulVote
@@ -61,7 +61,7 @@ def handle_review_moderation(sender, instance, created, **kwargs):
             )
             # send_notification_email.delay(notification.id) # MVP: Disabled email sending
 
-@receiver(post_save, sender=Photo)
+@receiver(post_save, sender=PlacePhoto)
 def handle_photo_moderation(sender, instance, created, **kwargs):
     """
     Handle notifications for photo moderation status changes
@@ -129,7 +129,7 @@ def handle_place_moderation(sender, instance, created, **kwargs):
             
             # Award points for approved place
             UserPoints.add_points(
-                user=instance.user,
+                user=instance.created_by,
                 points=20,
                 source_type='place',
                 source_id=instance.id,
@@ -154,7 +154,7 @@ def handle_place_moderation(sender, instance, created, **kwargs):
         
         if notification_type:
             notification = Notification.objects.create(
-                user=instance.user,
+                user=instance.created_by,
                 notification_type=notification_type,
                 title=title,
                 message=message,
@@ -168,9 +168,9 @@ def notify_place_owner_new_review(sender, instance, created, **kwargs):
     """
     Notify place owner when a new review is posted
     """
-    if created and instance.place.user:
+    if created and instance.place.created_by:
         notification = Notification.objects.create(
-            user=instance.place.user,
+            user=instance.place.created_by,
             actor=instance.user,
             notification_type='new_review',
             title='New Review for Your Place',
@@ -181,14 +181,14 @@ def notify_place_owner_new_review(sender, instance, created, **kwargs):
         # Send email asynchronously
         # send_notification_email.delay(notification.id) # MVP: Disabled email sending
 
-@receiver(post_save, sender=Photo)
+@receiver(post_save, sender=PlacePhoto)
 def notify_place_owner_new_photo(sender, instance, created, **kwargs):
     """
     Notify place owner when a new photo is uploaded
     """
-    if created and instance.place.user:
+    if created and instance.place.created_by:
         notification = Notification.objects.create(
-            user=instance.place.user,
+            user=instance.place.created_by,
             actor=instance.user,
             notification_type='new_photo',
             title='New Photo for Your Place',
@@ -197,7 +197,7 @@ def notify_place_owner_new_photo(sender, instance, created, **kwargs):
             object_id=instance.id
         )
         # Send email asynchronously
-        # send_notification_email.delay(notification.id) # MVP: Disabled email sending 
+        # send_notification_email.delay(notification.id) # MVP: Disabled email sending
 
 @receiver(post_save, sender=HelpfulVote)
 def handle_helpful_vote(sender, instance, created, **kwargs):

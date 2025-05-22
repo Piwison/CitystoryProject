@@ -1,20 +1,35 @@
 from django_filters import rest_framework as filters
 from django.db.models import Q
-from .models import Place, Feature, Review, Notification, Photo
-from .choices import PLACE_TYPE_CHOICES, PRICE_RANGE_CHOICES
+from .models import Place, Feature, Review, Notification, PlacePhoto
+from .choices import PLACE_TYPE_CHOICES, PRICE_LEVEL_CHOICES
 
 class PlaceFilter(filters.FilterSet):
-    """Filter set for Place model."""
+    """
+    Advanced filtering for places.
+    
+    API Naming Convention:
+    - API filter parameters use camelCase (e.g., minPrice, maxPrice, featureType)
+    - These map to snake_case model fields (e.g., price_level, feature_type)
+    
+    Supports:
+    - Price level filtering (minPrice/maxPrice -> price_level field)
+    - Place type filtering with multiple selection
+    - Feature filtering (name, type, has_all, has_any)
+    - Geolocation-based filtering with optimized distance calculation
+    - Rating-based filtering
+    - Date range filtering
+    - District-based filtering with multiple selection
+    """
     name = filters.CharFilter(lookup_expr='icontains')
     type = filters.ChoiceFilter(choices=PLACE_TYPE_CHOICES)
-    price_range = filters.ChoiceFilter(choices=PRICE_RANGE_CHOICES)
+    price_level = filters.ChoiceFilter(choices=PRICE_LEVEL_CHOICES)
     min_rating = filters.NumberFilter(field_name='average_rating', lookup_expr='gte')
     max_rating = filters.NumberFilter(field_name='average_rating', lookup_expr='lte')
     features = filters.CharFilter(method='filter_features')
     
     class Meta:
         model = Place
-        fields = ['name', 'type', 'price_range', 'min_rating', 'max_rating', 'features']
+        fields = ['name', 'type', 'price_level', 'min_rating', 'max_rating', 'features']
     
     def filter_features(self, queryset, name, value):
         """Filter places by comma-separated feature IDs."""
@@ -75,12 +90,12 @@ class NotificationFilter(filters.FilterSet):
         }
 
 class PhotoFilter(filters.FilterSet):
-    """Filter set for Photo model."""
-    uploader = filters.NumberFilter(field_name='uploader__id')
-    is_primary = filters.BooleanFilter()
+    """Filter set for PlacePhoto model."""
+    user = filters.NumberFilter(field_name='user__id')
+    is_primary = filters.BooleanFilter(field_name='is_primary')
     created_after = filters.DateTimeFilter(field_name='created_at', lookup_expr='gte')
     created_before = filters.DateTimeFilter(field_name='created_at', lookup_expr='lte')
     
     class Meta:
-        model = Photo
-        fields = ['uploader', 'is_primary', 'created_after', 'created_before'] 
+        model = PlacePhoto
+        fields = ['user', 'is_primary', 'created_after', 'created_before'] 

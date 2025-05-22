@@ -13,19 +13,37 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { useSession } from 'next-auth/react';
+import { ManagedPlace } from '@/types';
 
 interface PlaceListProps {
   onPlaceClick?: (place: Place) => void;
+  userId?: string; // Allow userId to be passed as prop
 }
 
 // Extend PlaceFilters with UI-specific filter fields
 interface ExtendedPlaceFilters extends PlaceFilters {
-  place_type?: string;
-  price_range?: number;
+  placeType?: string;
+  priceLevel?: string;
 }
 
-export function PlaceList({ onPlaceClick }: PlaceListProps) {
-  const [places, setPlaces] = useState<Place[]>([]);
+export function PlaceList({ onPlaceClick, userId: propUserId }: PlaceListProps) {
+  const { data: session } = useSession();
+  // Use userId from props or try to get from session/localStorage
+  // In a real app, you might want to get this from a global auth context
+  const [userId, setUserId] = useState<string | undefined>(propUserId);
+  
+  // Effect to initialize userId from localStorage if not provided as prop
+  useEffect(() => {
+    if (!userId) {
+      const storedUserId = localStorage.getItem('userId');
+      if (storedUserId) {
+        setUserId(storedUserId);
+      }
+    }
+  }, [userId]);
+  
+  const [places, setPlaces] = useState<ManagedPlace[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<ExtendedPlaceFilters>({
@@ -40,31 +58,41 @@ export function PlaceList({ onPlaceClick }: PlaceListProps) {
   });
 
   const fetchPlaces = async () => {
+    if (!userId) {
+      setError("You must be logged in to view your places");
+      return;
+    }
+
     const abortController = new AbortController();
 
     try {
       setIsLoading(true);
       setError(null);
       
-      // Convert ExtendedPlaceFilters to PlaceFilters
-      const apiFilters: PlaceFilters = {
-        search: filters.search,
-        category: filters.place_type, // Map place_type to category
-        page: filters.page,
-        limit: filters.limit,
-      };
+      // getManagedPlaces expects a userId string, not filters
+      const response = await getManagedPlaces(userId);
       
-      const response = await getManagedPlaces(apiFilters);
-      
-      if (!response || typeof response !== 'object') {
+      if (!response || !Array.isArray(response)) {
         throw new Error('Invalid response from server');
       }
 
-      setPlaces(response.items);
+      // Filter places based on current filters
+      const filteredPlaces = filterPlaces(response);
+      
+      // Calculate pagination
+      const page = filters.page || 1;
+      const limit = filters.limit || 10;
+      const startIndex = (page - 1) * limit; // Fix: correct calculation for startIndex
+      const endIndex = startIndex + limit;
+      
+      // Get current page of places
+      const paginatedPlaces = filteredPlaces.slice(startIndex, endIndex);
+      
+      setPlaces(paginatedPlaces);
       setPagination({
-        currentPage: response.page,
-        totalPages: response.totalPages,
-        totalItems: response.total,
+        currentPage: page,
+        totalPages: Math.max(1, Math.ceil(filteredPlaces.length / limit)),
+        totalItems: filteredPlaces.length,
       });
     } catch (err) {
       // Don't set error if request was cancelled
@@ -88,13 +116,37 @@ export function PlaceList({ onPlaceClick }: PlaceListProps) {
     };
   };
 
+  // Filter places client-side based on current filters
+  const filterPlaces = (places: ManagedPlace[]): ManagedPlace[] => {
+    return places.filter(place => {
+      // Filter by search term
+      if (filters.search && !place.title.toLowerCase().includes(filters.search.toLowerCase())) {
+        return false;
+      }
+      
+      // Filter by place type
+      if (filters.placeType && place.placeType !== filters.placeType) {
+        return false;
+      }
+      
+      // Filter by price level
+      if (filters.priceLevel && place.priceLevel !== filters.priceLevel) {
+        return false;
+      }
+      
+      return true;
+    });
+  };
+
   useEffect(() => {
     let isSubscribed = true;
     
     const doFetch = async () => {
-      const cleanup = await fetchPlaces();
-      if (!isSubscribed && cleanup) {
-        cleanup();
+      if (userId) { // Only fetch if userId is available
+        const cleanup = await fetchPlaces();
+        if (!isSubscribed && cleanup) {
+          cleanup();
+        }
       }
     };
 
@@ -103,7 +155,7 @@ export function PlaceList({ onPlaceClick }: PlaceListProps) {
     return () => {
       isSubscribed = false;
     };
-  }, [filters]);
+  }, [userId, filters]);
 
   const handlePageChange = (page: number) => {
     setFilters(prev => ({ ...prev, page }));
@@ -139,8 +191,8 @@ export function PlaceList({ onPlaceClick }: PlaceListProps) {
           className="w-full"
         />
         <Select
-          value={filters.place_type || ''}
-          onValueChange={(value) => handleFilterChange('place_type', value)}
+          value={filters.placeType || ''}
+          onValueChange={(value) => handleFilterChange('placeType', value)}
         >
           <option value="">All Types</option>
           <option value="restaurant">Restaurant</option>
@@ -149,13 +201,13 @@ export function PlaceList({ onPlaceClick }: PlaceListProps) {
           <option value="attraction">Attraction</option>
         </Select>
         <Select
-          value={filters.price_range?.toString() || ''}
-          onValueChange={(value) => handleFilterChange('price_range', value)}
+          value={filters.priceLevel || ''}
+          onValueChange={(value) => handleFilterChange('priceLevel', value)}
         >
           <option value="">All Prices</option>
-          {[1, 2, 3, 4, 5].map((price) => (
-            <option key={price} value={price.toString()}>
-              {'$'.repeat(price)}
+          {['0', '200', '400', '600', '800', '1000', '1500', '2000'].map((price) => (
+            <option key={price} value={price}>
+              {price === '0' ? 'Free' : `NT$${price}`}
             </option>
           ))}
         </Select>
@@ -178,23 +230,23 @@ export function PlaceList({ onPlaceClick }: PlaceListProps) {
             <Card
               key={place.id}
               className="p-4 cursor-pointer hover:shadow-lg transition-shadow"
-              onClick={() => onPlaceClick?.(place)}
+              onClick={() => onPlaceClick?.(place as unknown as Place)}
             >
-              {place.photos && place.photos[0] && (
+              {place.imageUrl && (
                 <div className="h-32 w-full mb-2 overflow-hidden rounded-md">
                   <img
-                    src={place.photos[0].url}
-                    alt={place.name}
+                    src={place.imageUrl}
+                    alt={place.title}
                     className="w-full h-full object-cover"
                   />
                 </div>
               )}
-              <h3 className="font-semibold text-lg">{place.name}</h3>
+              <h3 className="font-semibold text-lg">{place.title}</h3>
               <p className="text-sm text-gray-600">{place.address}</p>
               <div className="flex justify-between items-center mt-2">
-                <span className="text-sm text-gray-500 capitalize">{place.place_type}</span>
+                <span className="text-sm text-gray-500 capitalize">{place.placeType}</span>
                 <span className="text-sm text-gray-500">
-                  {'$'.repeat(place.price_range || 0)}
+                  {place.priceLevel === '0' ? 'Free' : `NT$${place.priceLevel || '0'}`}
                 </span>
               </div>
             </Card>

@@ -8,7 +8,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from django.db.models import Max
-from core.models import Photo, Place, Notification
+from core.models import PlacePhoto, Place, Notification
 from core.serializers import PhotoSerializer
 from core.permissions import IsOwnerOrReadOnly
 from django.db.models import Q
@@ -37,7 +37,7 @@ class PhotoViewSet(viewsets.ModelViewSet):
         user = self.request.user
         
         # Start with base queryset
-        queryset = Photo.objects.filter(place=place).select_related('uploader')
+        queryset = PlacePhoto.objects.filter(place=place).select_related('user')
         
         # Filter by permission level and moderation status
         if not user.is_authenticated:
@@ -49,7 +49,7 @@ class PhotoViewSet(viewsets.ModelViewSet):
         else:
             # Regular authenticated users can see their own photos + approved photos
             queryset = queryset.filter(
-                Q(uploader=user) |  # Their own photos (any status)
+                Q(user=user) |  # Their own photos (any status)
                 Q(moderation_status='APPROVED')  # Approved photos from others
             )
             
@@ -58,19 +58,15 @@ class PhotoViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """Create a new photo, associating it with the current user and place"""
         place = get_object_or_404(Place, pk=self.kwargs['place_pk'])
-        serializer.save(uploader=self.request.user, place=place)
+        serializer.save(user=self.request.user, place=place)
     
     def perform_update(self, serializer):
         """Update an existing photo"""
         serializer.save()
     
     def perform_destroy(self, instance):
-        """Delete the photo and its files."""
-        # Delete the actual files
-        if instance.image:
-            instance.image.delete(save=False)
-        if instance.thumbnail:
-            instance.thumbnail.delete(save=False)
+        """Delete the photo."""
+        # No need to delete any files since PlacePhoto uses URLs
         instance.delete()
     
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAdminUser])
@@ -98,6 +94,6 @@ class PhotoViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_401_UNAUTHORIZED
             )
         
-        photos = self.get_queryset().filter(uploader=request.user)
+        photos = self.get_queryset().filter(user=request.user)
         serializer = self.get_serializer(photos, many=True)
         return Response(serializer.data) 

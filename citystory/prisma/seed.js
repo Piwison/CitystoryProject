@@ -25,7 +25,7 @@ async function main() {
         "https://images.unsplash.com/photo-1554118811-1e0d58224f24",
         "https://images.unsplash.com/photo-1559925393-8be0ec4767c8"
       ]),
-      status: "approved",
+      status: "APPROVED",
       userId: "demo@example.com"
     },
     {
@@ -45,7 +45,7 @@ async function main() {
         "https://images.unsplash.com/photo-1555396273-367ea4eb4db5",
         "https://images.unsplash.com/photo-1414235077428-338989a2e8c0"
       ]),
-      status: "approved",
+      status: "APPROVED",
       userId: "demo@example.com"
     },
     {
@@ -65,7 +65,7 @@ async function main() {
         "https://images.unsplash.com/photo-1514933651103-005eec06c04b",
         "https://images.unsplash.com/photo-1538488881038-e252a119ace7"
       ]),
-      status: "approved",
+      status: "APPROVED",
       userId: "demo@example.com"
     }
   ]

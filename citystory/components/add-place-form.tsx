@@ -260,12 +260,10 @@ export default function AddPlaceForm() {
     onSuccess: () => {
       setShowSuccessDialog(true);
       setShowConfetti(true);
-      setTimeout(() => setShowConfetti(false), 3000);
-      // Optionally reset form, etc.
     },
-    onError: (error: any) => {
-      setSubmitError(error.message || "Failed to submit place");
-    },
+    onError: (error) => {
+      setSubmitError(error.message || 'Failed to create place. Please try again.');
+    }
   });
 
   // Now, after all hooks, do your early return
@@ -343,24 +341,29 @@ export default function AddPlaceForm() {
         break;
       }
     }
-    // Map form values to PlaceCreationPayload
+    // Map form values to PlaceCreationPayload with correct field names
     const payload = {
-      title: values.name,
+      title: values.name, 
       description: values.comment,
-      placeType: values.placeType as import('@/types').PlaceType,
+      placeType: values.placeType as import('@/types').PlaceType, // Changed from 'type' to 'placeType'
       district: extractedDistrict as import('@/types').District,
       address: values.address,
       features: values.features,
-      priceLevel: values.priceRange,
+      priceLevel: values.priceRange, // Changed from 'price_range' to 'priceLevel'
       imageUrl: values.photos?.[0], // or handle multiple photos as needed
       openingHours: undefined, // TODO: Add to form if needed
       phone: undefined,        // TODO: Add to form if needed
       website: undefined,      // TODO: Add to form if needed
+      googleMapsLink: googleMapsLink,
       slug: undefined,         // TODO: Add to form if needed
       tags: [],                // TODO: Add to form if needed
-      // Add any other fields as needed
     };
-    createPlace.mutate(payload);
+    
+    try {
+      createPlace.mutate(payload);
+    } catch (error: any) {
+      setSubmitError(error.message || 'Failed to create place. Please try again.');
+    }
   }
 
   return (

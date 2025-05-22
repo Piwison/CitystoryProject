@@ -10,8 +10,8 @@ class IsOwnerOrReadOnly(permissions.BasePermission):
         if request.method in permissions.SAFE_METHODS:
             return True
 
-        # Write permissions are only allowed to the owner of the object.
-        return obj.user == request.user
+        # Write permissions are only allowed to the creator of the object.
+        return obj.created_by == request.user
 
 class IsModeratorOrReadOnly(permissions.BasePermission):
     """

@@ -23,17 +23,23 @@ from rest_framework_simplejwt.views import (
     TokenVerifyView,
 )
 from core.views.auth import CustomTokenObtainPairView, UserRegistrationView, LogoutView
+from django.urls import path
+from core.views.google_auth import GoogleOAuthCallbackView
+from core.views.auth import CustomTokenVerifyView
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api-auth/', include('rest_framework.urls')),
     path('api/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('api/token/verify/', TokenVerifyView.as_view(), name='token_verify'),
+    # path('api/token/verify/', TokenVerifyView.as_view(), name='token_verify'),
+    path('api/token/verify/', CustomTokenVerifyView.as_view(), name='token_verify'),
     path('api/register/', UserRegistrationView.as_view(), name='register'),
     path('api/login/', CustomTokenObtainPairView.as_view(), name='login'),
     path('api/logout/', LogoutView.as_view(), name='logout'),
     path('api/', include('core.urls')),
+    path('api/auth/google/callback/', GoogleOAuthCallbackView.as_view(), name='google-oauth-callback'),
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

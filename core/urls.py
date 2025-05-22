@@ -1,5 +1,5 @@
 from django.urls import path, include
-from rest_framework.routers import DefaultRouter, SimpleRouter
+from rest_framework.routers import DefaultRouter
 from rest_framework_nested.routers import NestedSimpleRouter
 from rest_framework_simplejwt.views import TokenRefreshView, TokenVerifyView
 from .views import (
@@ -20,10 +20,13 @@ from .views import (
     UserBadgeViewSet,
     UserPointsViewSet,
     UserLevelViewSet,
-    UserProfileViewSet
+    UserProfileViewSet,
+    ConvertSessionView
 )
 from .views.user_status import AdminUserStatusView, self_deactivate_view
 from .views.search import FullTextSearchView, CombinedSearchView
+from core.views.auth import CustomTokenVerifyView
+
 
 # Create a router for top-level endpoints
 router = DefaultRouter()
@@ -63,6 +66,9 @@ urlpatterns = [
     path('search/', FullTextSearchView.as_view(), name='full-text-search'),
     path('search/combined/', CombinedSearchView.as_view(), name='combined-search'),
     
+    path('auth/convert-session/', ConvertSessionView.as_view(), name='convert-session'),
+
+
     path('', include(router.urls)),
     path('', include(places_router.urls)),
 ] 

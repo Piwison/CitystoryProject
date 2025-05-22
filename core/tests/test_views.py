@@ -2,7 +2,7 @@ from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APITestCase, APIClient
 from django.contrib.auth import get_user_model
-from core.models import Place, Review, Photo, Notification
+from core.models import Place, Review, PlacePhoto, Notification
 from rest_framework import status
 
 User = get_user_model()
@@ -17,8 +17,9 @@ class NotificationViewSetTests(APITestCase):
         )
         self.notification = Notification.objects.create(
             user=self.user,
-            type='place_review',
-            content='Test notification',
+            notification_type='new_review',
+            title='Test notification',
+            message='Test notification message',
             is_read=False
         )
         self.client.force_authenticate(user=self.user)
@@ -52,12 +53,10 @@ class PlaceViewSetTests(APITestCase):
         self.place_data = {
             'name': 'Test Place',
             'description': 'Test Description',
-            'type': 'restaurant',
-            'price_range': '$$',
+            'placeType': 'restaurant',
+            'priceLevel': 200,  # integer value
             'address': '123 Test St',
-            'city': 'Test City',
-            'state': 'TS',
-            'zip_code': '12345'
+            'district': 'xinyi',
         }
     
     def test_create_place(self):
@@ -70,7 +69,15 @@ class PlaceViewSetTests(APITestCase):
     
     def test_update_place(self):
         """Test updating an existing place"""
-        place = Place.objects.create(owner=self.user, **self.place_data)
+        place = Place.objects.create(
+            created_by=self.user,
+            name=self.place_data['name'],
+            description=self.place_data['description'],
+            place_type=self.place_data['placeType'],
+            price_level=self.place_data['priceLevel'],
+            address=self.place_data['address'],
+            district=self.place_data['district']
+        )
         url = reverse('place-detail', args=[place.id])
         updated_data = {
             'name': 'Updated Place',
@@ -89,18 +96,21 @@ class ReviewViewSetTests(APITestCase):
         self.place = Place.objects.create(
             name='Test Place',
             description='Test Description',
-            type='restaurant',
-            price_range='$$',
-            owner=self.user
+            place_type='restaurant',
+            price_level=200,
+            address='123 Test St',
+            district='xinyi',
+            created_by=self.user
         )
         self.review = Review.objects.create(
             place=self.place,
             user=self.user,
             comment='Test Review',
-            food_rating=4,
-            service_rating=4,
-            value_rating=4,
-            cleanliness_rating=4
+            overall_rating=4,
+            food_quality=4,
+            service=4,
+            value=4,
+            cleanliness=4
         )
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
@@ -110,10 +120,11 @@ class ReviewViewSetTests(APITestCase):
         url = reverse('place-reviews-list', kwargs={'place_pk': self.place.id})
         data = {
             'comment': 'Great place!',
-            'food_rating': 5,
-            'service_rating': 4,
-            'value_rating': 4,
-            'cleanliness_rating': 5
+            'overallRating': 5,
+            'foodQuality': 5,
+            'service': 4,
+            'value': 4,
+            'cleanliness': 5
         }
         response = self.client.post(url, data)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -139,13 +150,15 @@ class PhotoViewSetTests(APITestCase):
         self.place = Place.objects.create(
             name='Test Place',
             description='Test Description',
-            type='restaurant',
-            price_range='$$',
-            owner=self.user
+            place_type='restaurant',
+            price_level=200,
+            address='123 Test St',
+            district='xinyi',
+            created_by=self.user
         )
-        self.photo = Photo.objects.create(
+        self.photo = PlacePhoto.objects.create(
             place=self.place,
-            uploader=self.user,
+            user=self.user,
             caption='Test Photo'
         )
         self.client = APIClient()
@@ -161,7 +174,7 @@ class PhotoViewSetTests(APITestCase):
             }
             response = self.client.post(url, data, format='multipart')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(Photo.objects.count(), 2)
+        self.assertEqual(PlacePhoto.objects.count(), 2)
     
     def test_update_photo(self):
         """Test updating an existing photo"""
@@ -172,4 +185,4 @@ class PhotoViewSetTests(APITestCase):
         data = {'caption': 'Updated caption'}
         response = self.client.patch(url, data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(Photo.objects.get().caption, 'Updated caption') 
+        self.assertEqual(PlacePhoto.objects.get().caption, 'Updated caption') 

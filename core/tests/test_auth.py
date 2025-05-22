@@ -10,6 +10,7 @@ class JWTAuthenticationTest(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.user = User.objects.create_user(
+            username='testuser',
             email='test@example.com',
             password='testpass123'
         )
@@ -20,7 +21,7 @@ class JWTAuthenticationTest(TestCase):
     def test_obtain_token_pair(self):
         """Test obtaining JWT token pair"""
         response = self.client.post(self.token_obtain_url, {
-            'email': 'test@example.com',
+            'username': 'testuser',
             'password': 'testpass123'
         })
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -31,7 +32,7 @@ class JWTAuthenticationTest(TestCase):
         """Test refreshing JWT token"""
         # First obtain tokens
         response = self.client.post(self.token_obtain_url, {
-            'email': 'test@example.com',
+            'username': 'testuser',
             'password': 'testpass123'
         })
         refresh_token = response.data['refresh']
@@ -47,7 +48,7 @@ class JWTAuthenticationTest(TestCase):
         """Test verifying JWT token"""
         # First obtain tokens
         response = self.client.post(self.token_obtain_url, {
-            'email': 'test@example.com',
+            'username': 'testuser',
             'password': 'testpass123'
         })
         access_token = response.data['access']
@@ -61,7 +62,7 @@ class JWTAuthenticationTest(TestCase):
     def test_obtain_token_invalid_credentials(self):
         """Test obtaining JWT token with invalid credentials"""
         response = self.client.post(self.token_obtain_url, {
-            'email': 'test@example.com',
+            'username': 'testuser',
             'password': 'wrongpass'
         })
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)

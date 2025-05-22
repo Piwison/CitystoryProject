@@ -11,6 +11,7 @@ import UserContributions from "@/components/user-contributions"
 import UserReviews from "@/components/user-reviews"
 import UserSavedPlaces from "@/components/user-saved-places"
 import UserAchievements from "@/components/user-achievements"
+import { getUserDisplayName, getUserInitials } from "@/lib/utils"
 
 // Mock user data - in a real app, this would come from a database
 const mockUsers = {
@@ -383,16 +384,16 @@ export default function UserProfilePage({ params }: any) {
           <div className="flex flex-col md:flex-row md:items-end">
             <Avatar className="h-32 w-32 border-4 border-white shadow-lg">
               {user.avatarUrl ? (
-                <AvatarImage src={user.avatarUrl || "/placeholder.svg"} alt={user.name} />
+                <AvatarImage src={user.avatarUrl || "/placeholder.svg"} alt={getUserDisplayName(user)} />
               ) : (
-                <AvatarFallback className="bg-[#3F72AF] text-white text-4xl">{user.avatarInitials}</AvatarFallback>
+                <AvatarFallback className="bg-[#3F72AF] text-white text-4xl">{getUserInitials(user)}</AvatarFallback>
               )}
             </Avatar>
             <div className="mt-4 md:mt-0 md:ml-6 flex-1">
               <div className="flex flex-col md:flex-row md:items-center justify-between">
                 <div>
                   <div className="flex items-center">
-                    <h1 className="text-2xl font-bold text-[#112D4E]">{user.name}</h1>
+                    <h1 className="text-2xl font-bold text-[#112D4E]">{getUserDisplayName(user)}</h1>
                     {user.isVerified && (
                       <Badge className="ml-2 bg-[#3F72AF]">
                         <Award className="h-3 w-3 mr-1" /> Verified

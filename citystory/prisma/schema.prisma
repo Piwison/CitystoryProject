@@ -55,11 +55,12 @@ enum TaipeiDistrict {
 model User {
   id            String       @id @default(cuid())
   email         String       @unique
-  name          String?
   username      String?      @unique
   password      String?      // Nullable for SSO users
-  authType      AuthType     @default(LOCAL)
-  googleId      String?      @unique
+  auth_type     AuthType     @default(LOCAL)
+  google_id     String?      @unique
+  first_name    String?
+  last_name     String?
   avatar        String?      // Profile image URL
   bio           String?      // Short user description
   location      String?      // User's current location (city/country)
@@ -67,7 +68,8 @@ model User {
   guideLevel    Int          @default(1)  // Level based on points
   isVerified    Boolean      @default(false)
   status        UserStatus   @default(ACTIVE)
-  lastLogin     DateTime?    
+  last_login    DateTime?
+  name          String?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   
@@ -79,7 +81,7 @@ model User {
   userBadges    UserBadge[]
 
   @@index([email])
-  @@index([googleId])
+  @@index([google_id])
   @@index([username])
   @@index([guideLevel])
 }
@@ -92,18 +94,18 @@ model Place {
   district      TaipeiDistrict?  // District in Taipei
   latitude      Float?       // Auto-generated from address
   longitude     Float?       // Auto-generated from address
-  placeType     PlaceType
+  place_type    PlaceType
   avgRating     Float?
-  priceRange    Int?         // 1-5 scale (corresponds to NT$500 increments)
+  price_range   Int?         // Use price_range as the field name
   description   String?      @db.Text
   googleMapsLink String?
   status        PlaceStatus  @default(APPROVED)
   contributorId String
+  contributor   User         @relation(fields: [contributorId], references: [id])
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   
   // Relations
-  contributor   User         @relation(fields: [contributorId], references: [id])
   reviews       Review[]
   photos        PlacePhoto[]
   features      PlaceFeature[]
@@ -112,7 +114,7 @@ model Place {
   @@index([name])
   @@index([contributorId])
   @@index([status])
-  @@index([placeType])
+  @@index([place_type])
   @@index([district])
   @@index([createdAt])
   @@index([latitude, longitude]) // Geospatial index for location-based queries

@@ -16,7 +16,7 @@ class SavedPlaceFilter(FilterSet):
     search = CharFilter(method='filter_search', label=_('Search'))
     created_at = DateFromToRangeFilter()
     district = CharFilter(field_name='place__district')
-    place_type = CharFilter(field_name='place__type')
+    place_type = CharFilter(field_name='place__place_type')
     
     class Meta:
         model = SavedPlace

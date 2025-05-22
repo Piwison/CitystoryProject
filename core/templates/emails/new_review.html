@@ -11,14 +11,14 @@
 
 <p>Review details:</p>
 <blockquote style="margin: 20px; padding: 10px; border-left: 4px solid #4a90e2; background-color: #f5f5f5;">
-    <p><strong>Rating:</strong> {{ notification.content_object.rating }} / 5</p>
-    <p><strong>Review:</strong><br>{{ notification.content_object.text }}</p>
+    <p><strong>Rating:</strong> {{ notification.content_object.overall_rating }} / 5</p>
+    <p><strong>Review:</strong><br>{{ notification.content_object.comment }}</p>
     <p><em>By: {{ notification.actor.get_full_name }}</em></p>
 </blockquote>
 
 <p>Note: This review is pending moderation and will be visible to the public after approval.</p>
 
-<a href="{{ site_url }}{% url 'place-detail' notification.content_object.place.id %}" class="button">View Your Place</a>
+<a href="{{ site_url }}{% url 'place-detail' notification.content_object.place.slug %}" class="button">View Your Place</a>
 
 <p>Thank you for being part of the CityStory community!</p>
 

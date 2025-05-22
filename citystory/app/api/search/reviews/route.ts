@@ -10,28 +10,30 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 // import { searchService } from "@/lib/services/searchService"
 
+// Backend API URL
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000';
+
 export async function GET(request: NextRequest) {
-  return NextResponse.json(
-    { error: "Review search not implemented with new API services." },
-    { status: 501 } // Not Implemented
-  )
-  
-  /*
   try {
     const { searchParams } = new URL(request.url)
     
-    const filters = {
-      query: searchParams.get("q") || undefined,
-      page: searchParams.get("page") ? parseInt(searchParams.get("page")!) : undefined,
-      limit: searchParams.get("limit") ? parseInt(searchParams.get("limit")!) : undefined,
-      sortBy: searchParams.get("sort_by") || undefined,
-      sortOrder: searchParams.get("sort_order") as "asc" | "desc" | undefined,
-      rating: searchParams.getAll("rating[]").map(Number),
-    }
-
-    const results = await searchService.searchReviews(filters)
+    // Forward the search request to Django backend with original query params
+    const queryString = searchParams.toString();
+    const response = await fetch(`${BACKEND_URL}/api/search/reviews/?${queryString}`);
     
-    return NextResponse.json(results)
+    // Handle errors from backend
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      console.error("[REVIEW_SEARCH_GET] Backend error:", errorData);
+      return NextResponse.json(
+        { error: errorData || "Backend API error" },
+        { status: response.status }
+      );
+    }
+    
+    // Return the response from backend
+    const data = await response.json();
+    return NextResponse.json(data);
   } catch (error) {
     console.error("Review search error:", error)
     return NextResponse.json(
@@ -39,21 +41,34 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     )
   }
-  */
 }
 
 export async function POST(request: NextRequest) {
-  return NextResponse.json(
-    { error: "Review search not implemented with new API services." },
-    { status: 501 } // Not Implemented
-  )
-  
-  /*
   try {
     const body = await request.json()
-    const results = await searchService.searchReviews(body)
     
-    return NextResponse.json(results)
+    // Forward the search request to Django backend
+    const response = await fetch(`${BACKEND_URL}/api/search/reviews/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+    
+    // Handle errors from backend
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      console.error("[REVIEW_SEARCH_POST] Backend error:", errorData);
+      return NextResponse.json(
+        { error: errorData || "Backend API error" },
+        { status: response.status }
+      );
+    }
+    
+    // Return the response from backend
+    const data = await response.json();
+    return NextResponse.json(data);
   } catch (error) {
     console.error("Review search error:", error)
     return NextResponse.json(
@@ -61,5 +76,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
-  */
 } 

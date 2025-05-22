@@ -110,4 +110,6 @@ Tests are provided in `core/tests/test_geocoding.py` and cover:
 - Implement caching for frequently geocoded addresses
 - Add support for additional geocoding providers
 - Enhance district determination with more precise boundary data
-- Implement progressive batch geocoding for large datasets 
+- Implement progressive batch geocoding for large datasets
+
+> **Note:** Geocoding endpoints and features are deferred to v2 and are not available in the MVP release. All related endpoints, utilities, and tests are disabled for now. 

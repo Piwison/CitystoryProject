@@ -23,8 +23,8 @@ class ReviewValidationTest(APITestCase):
         self.restaurant = Place.objects.create(
             name='Test Restaurant',
             description='A restaurant for testing',
-            type='restaurant',
-            price_range='600',
+            place_type='restaurant',
+            price_level='600',
             address='123 Test St',
             district='xinyi',
             user=self.user
@@ -33,8 +33,8 @@ class ReviewValidationTest(APITestCase):
         self.attraction = Place.objects.create(
             name='Test Attraction',
             description='An attraction for testing',
-            type='attraction',
-            price_range='600',
+            place_type='attraction',
+            price_level='600',
             address='456 Test St',
             district='xinyi',
             user=self.user
@@ -43,8 +43,8 @@ class ReviewValidationTest(APITestCase):
         self.hotel = Place.objects.create(
             name='Test Hotel',
             description='A hotel for testing',
-            type='hotel',
-            price_range='600',
+            place_type='hotel',
+            price_level='600',
             address='789 Test St',
             district='xinyi',
             user=self.user
@@ -58,22 +58,22 @@ class ReviewValidationTest(APITestCase):
         """Test that restaurant reviews require food and service ratings."""
         # Missing required fields for a restaurant
         incomplete_review = {
-            'overall_rating': 4,
+            'overallRating': 4,
             'comment': 'Great food but service was lacking.'
         }
         
         url = reverse('place-reviews-list', kwargs={'place_pk': self.restaurant.id})
         response = self.client.post(url, incomplete_review, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('food_rating', response.data)
-        self.assertIn('service_rating', response.data)
+        self.assertIn('foodQuality', response.data)
+        self.assertIn('service', response.data)
         
         # Complete review with all required fields
         complete_review = {
-            'overall_rating': 4,
-            'food_rating': 5,
-            'service_rating': 3,
-            'value_rating': 4,
+            'overallRating': 4,
+            'foodQuality': 5,
+            'service': 3,
+            'value': 4,
             'comment': 'Great food but service was lacking.'
         }
         
@@ -84,7 +84,7 @@ class ReviewValidationTest(APITestCase):
         """Test that attraction reviews only require overall rating."""
         # Only overall rating is required for attractions
         minimal_review = {
-            'overall_rating': 4,
+            'overallRating': 4,
             'comment': 'Great attraction.'
         }
         
@@ -99,7 +99,7 @@ class ReviewValidationTest(APITestCase):
         
         response = self.client.post(url, invalid_review, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('overall_rating', response.data)
+        self.assertIn('overallRating', response.data)
     
     def test_review_update_validation(self):
         """Test that updates to reviews also undergo validation."""
@@ -108,15 +108,15 @@ class ReviewValidationTest(APITestCase):
             place=self.restaurant,
             user=self.user,
             overall_rating=4,
-            food_rating=4,
-            service_rating=4,
-            value_rating=4,
+            food_quality=4,
+            service=4,
+            value=4,
             comment='Initial review'
         )
         
         # Try to update with invalid data (removing required fields)
         update_data = {
-            'food_rating': None,
+            'foodQuality': None,
             'comment': 'Updated review'
         }
         
@@ -126,21 +126,21 @@ class ReviewValidationTest(APITestCase):
         
         # Valid update
         valid_update = {
-            'food_rating': 5,
+            'foodQuality': 5,
             'comment': 'Updated review'
         }
         
         response = self.client.patch(url, valid_update, format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['food_rating'], 5)
+        self.assertEqual(response.data['foodQuality'], 5)
         self.assertEqual(response.data['comment'], 'Updated review')
     
     def test_hotel_review_validation(self):
         """Test that hotel reviews require cleanliness rating."""
         # Should pass with overall rating and cleanliness rating
         hotel_review = {
-            'overall_rating': 4,
-            'cleanliness_rating': 5,
+            'overallRating': 4,
+            'cleanliness': 5,
             'comment': 'Very clean hotel with friendly staff.'
         }
         
@@ -150,10 +150,10 @@ class ReviewValidationTest(APITestCase):
         
         # Should fail without cleanliness rating for a hotel
         invalid_hotel_review = {
-            'overall_rating': 4,
+            'overallRating': 4,
             'comment': 'Hotel was ok.'
         }
         
         response = self.client.post(url, invalid_hotel_review, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('cleanliness_rating', response.data) 
+        self.assertIn('cleanliness', response.data) 

@@ -6,7 +6,7 @@ from core.models.notification import Notification
 from core.models.user import User
 from core.models.place import Place
 from core.models.review import Review
-from core.models.photo import Photo
+from core.models.photo import PlacePhoto
 from core.models.badge import Badge
 from core.models.user_badge import UserBadge
 from django.utils.html import strip_tags

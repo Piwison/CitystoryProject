@@ -4,26 +4,44 @@ from django.db import models
 class User(AbstractUser):
     """
     Custom user model for the application.
-    Extends Django's AbstractUser to allow for future customization.
+    Matches the User model in Prisma schema.
     """
-    # Add custom fields here if needed
-    bio = models.TextField(max_length=500, blank=True)
-    avatar = models.ImageField(upload_to='avatars/', null=True, blank=True)
-    
     # OAuth related fields
     google_id = models.CharField(max_length=255, blank=True, null=True, unique=True)
     auth_type = models.CharField(
         max_length=10,
         choices=[
-            ('local', 'Local'),
-            ('google', 'Google'),
+            ('LOCAL', 'Local'),
+            ('GOOGLE', 'Google'),
         ],
-        default='local'
+        default='LOCAL'
     )
-    last_login = models.DateTimeField(auto_now=False, null=True, blank=True)
+    
+    # Profile fields
+    avatar = models.CharField(max_length=255, null=True, blank=True, help_text="Profile image URL")
+    bio = models.TextField(blank=True, null=True, help_text="Short user description")
+    location = models.CharField(max_length=255, null=True, blank=True, help_text="User's current location (city/country)")
+    
+    # Guide system
+    guide_points = models.IntegerField(default=0, help_text="Points earned for contributions")
+    guide_level = models.IntegerField(default=1, help_text="Level based on points")
+    is_verified = models.BooleanField(default=False)
+    
+    # Status and timestamps
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ('ACTIVE', 'Active'),
+            ('SUSPENDED', 'Suspended'),
+            ('DELETED', 'Deleted'),
+        ],
+        default='ACTIVE'
+    )
+    name = models.CharField(max_length=255, null=True, blank=True)
+    last_login = models.DateTimeField(null=True, blank=True)
     
     class Meta:
         db_table = 'auth_user'
         
     def __str__(self):
-        return self.username 
+        return self.username or self.email 

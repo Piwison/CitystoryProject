@@ -6,49 +6,23 @@ from django.utils import timezone
 class Badge(TimestampMixin):
     """
     Model representing achievement badges that users can earn.
-    Badges are awarded based on specific user activities and milestones.
+    Matches the Badge model in Prisma schema.
     """
-    BADGE_TYPES = [
-        ('place_contribution', 'Place Contribution'),
-        ('review_contribution', 'Review Contribution'),
-        ('photo_contribution', 'Photo Contribution'),
-        ('engagement', 'Engagement'), 
-        ('longevity', 'Longevity'),
-        ('special', 'Special')
-    ]
-    
-    BADGE_LEVELS = [
-        ('bronze', 'Bronze'),
-        ('silver', 'Silver'),
-        ('gold', 'Gold'),
-        ('platinum', 'Platinum')
-    ]
-    
-    name = models.CharField(max_length=100)
+    id = models.CharField(max_length=128, primary_key=True, default='')  # Matching cuid field from Prisma
+    name = models.CharField(max_length=100, unique=True)
+    icon = models.CharField(max_length=255)
     description = models.TextField()
-    type = models.CharField(max_length=50, choices=BADGE_TYPES)
-    level = models.CharField(max_length=20, choices=BADGE_LEVELS)
-    icon = models.URLField(blank=True, null=True, help_text="URL to the badge icon image")
-    points = models.PositiveIntegerField(default=0, help_text="Points awarded for earning this badge")
-    
-    # Requirement information
-    requirement_description = models.TextField(help_text="Human-readable description of how to earn this badge")
-    requirement_code = models.CharField(
-        max_length=100, 
-        unique=True,
-        help_text="Code used to programmatically check badge requirements"
-    )
+    max_level = models.PositiveIntegerField(default=1)
+    category = models.CharField(max_length=100)
     
     class Meta:
-        ordering = ['level', 'name']
         indexes = [
-            models.Index(fields=['type']),
-            models.Index(fields=['level']),
-            models.Index(fields=['requirement_code']),
+            models.Index(fields=['name']),
+            models.Index(fields=['category']),
         ]
     
     def __str__(self):
-        return f"{self.name} ({self.get_level_display()})"
+        return self.name
     
     @classmethod
     def check_eligibility(cls, user):
@@ -65,7 +39,7 @@ class Badge(TimestampMixin):
         all_badges = cls.objects.all()
         
         # Get badges the user already has
-        user_badge_ids = user.badges.values_list('badge_id', flat=True)
+        user_badge_ids = user.user_badges.values_list('badge_id', flat=True)
         
         # Filter out badges the user already has
         eligible_badges = []
@@ -75,15 +49,45 @@ class Badge(TimestampMixin):
             if badge.id in user_badge_ids:
                 continue
                 
-            # Check if user meets the requirements for this badge
-            requirement_check_method = getattr(
-                cls.BadgeRequirementChecker,
-                f"check_{badge.requirement_code}",
-                None
-            )
+            # Handle common badge name patterns for requirement method lookup
+            name = badge.name.lower()
             
-            if requirement_check_method and requirement_check_method(user):
-                eligible_badges.append(badge)
+            # First try direct conversion (lowercase with underscores)
+            requirement_code = name.replace(' ', '_')
+            
+            # Also try without 'badge' in the name
+            if 'badge' in requirement_code:
+                requirement_code = requirement_code.replace('_badge', '')
+            
+            # Check if there's a level indicator (bronze, silver, gold)
+            level_indicators = ['bronze', 'silver', 'gold']
+            base_name = None
+            for level in level_indicators:
+                if level in requirement_code:
+                    base_name = requirement_code.replace(f'_{level}', '')
+                    requirement_code = f"{base_name}_{level}"
+                    break
+                
+            # Try different variants of the method name
+            method_variants = [
+                f"check_{requirement_code}",
+                f"check_{base_name}" if base_name else None
+            ]
+            
+            # Try to find the appropriate check method
+            for method_name in method_variants:
+                if not method_name:
+                    continue
+                    
+                requirement_check_method = getattr(
+                    cls.BadgeRequirementChecker,
+                    method_name,
+                    None
+                )
+                
+                if requirement_check_method and requirement_check_method(user):
+                    eligible_badges.append(badge)
+                    break
         
         return eligible_badges
     
@@ -98,7 +102,7 @@ class Badge(TimestampMixin):
             """Check if user has added at least one approved place."""
             from .place import Place
             return Place.objects.filter(
-                user=user, 
+                created_by=user, 
                 moderation_status='APPROVED'
             ).exists()
         
@@ -107,7 +111,7 @@ class Badge(TimestampMixin):
             """Check if user has added at least 5 approved places."""
             from .place import Place
             return Place.objects.filter(
-                user=user, 
+                created_by=user, 
                 moderation_status='APPROVED'
             ).count() >= 5
         
@@ -116,7 +120,7 @@ class Badge(TimestampMixin):
             """Check if user has added at least 20 approved places."""
             from .place import Place
             return Place.objects.filter(
-                user=user, 
+                created_by=user, 
                 moderation_status='APPROVED'
             ).count() >= 20
         
@@ -222,7 +226,7 @@ class Badge(TimestampMixin):
             from .place import Place
             
             distinct_cities = Place.objects.filter(
-                user=user,
+                created_by=user,
                 moderation_status='APPROVED'
             ).values('city').distinct().count()
             
@@ -234,8 +238,8 @@ class Badge(TimestampMixin):
             from .place import Place
             
             distinct_types = Place.objects.filter(
-                user=user,
+                created_by=user,
                 moderation_status='APPROVED'
-            ).values('type').distinct().count()
+            ).values('place_type').distinct().count()
             
             return distinct_types >= 4 

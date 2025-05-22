@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import GuideLevelBadge from '@/components/auth/GuideLevelBadge';
 import GuidePointsHistory, { PointEvent } from '@/components/auth/GuidePointsHistory';
 import { User } from '@/context/AuthContext';
+import { getUserDisplayName, getUserInitials } from "@/lib/utils"
 
 // Mock data - In a real app, this would come from API calls
 const mockUserDetails = {
@@ -85,23 +86,14 @@ export default function ProfilePage() {
     return null; // Will redirect in the useEffect
   }
 
-  // Get initials for avatar fallback
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(part => part[0])
-      .join('')
-      .toUpperCase();
-  };
-
-  const userInitials = getInitials(user.name || user.username);
+  const userInitials = getUserInitials(user);
 
   return (
     <div className="container max-w-4xl mx-auto px-4 py-8">
       <div className="flex flex-col md:flex-row gap-8 mb-8 items-center md:items-start">
         <div className="relative group">
           <Avatar className="h-32 w-32">
-            <AvatarImage src={avatarUrl} alt={user.name} />
+            <AvatarImage src={avatarUrl} alt={getUserDisplayName(user)} />
             <AvatarFallback className="text-3xl">{userInitials}</AvatarFallback>
           </Avatar>
           <Button
@@ -118,7 +110,7 @@ export default function ProfilePage() {
         </div>
 
         <div className="text-center md:text-left">
-          <h1 className="text-2xl font-bold mb-1">{user.name}</h1>
+          <h1 className="text-2xl font-bold mb-1">{getUserDisplayName(user)}</h1>
           <p className="text-gray-500 mb-3">@{user.username}</p>
           
           <GuideLevelBadge 
@@ -160,7 +152,7 @@ export default function ProfilePage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Name</label>
-                <div className="mt-1 text-gray-900">{user.name}</div>
+                <div className="mt-1 text-gray-900">{getUserDisplayName(user)}</div>
               </div>
               
               <div>

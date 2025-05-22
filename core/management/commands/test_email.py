@@ -5,6 +5,7 @@ from core.models.place import Place
 from core.models.review import Review
 from core.models.notification import Notification
 from core.tasks import send_notification_email
+from core.models.photo import PlacePhoto
 
 User = get_user_model()
 

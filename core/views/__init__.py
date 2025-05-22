@@ -2,7 +2,7 @@
 Core app views package.
 """
 
-from .auth import UserRegistrationView, CustomTokenObtainPairView, LogoutView
+from .auth import UserRegistrationView, CustomTokenObtainPairView, LogoutView, ConvertSessionView
 from .places import PlaceViewSet
 from .reviews import ReviewViewSet
 from .photos import PhotoViewSet

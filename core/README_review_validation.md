@@ -44,7 +44,7 @@ def validate_review_data(self, place, data):
         errors['overall_rating'] = ['Overall rating is required for all places.']
         
     # Food establishments require food and service ratings
-    if place.type in ['restaurant', 'cafe', 'bar']:
+    if place.place_type in ['restaurant', 'cafe', 'bar']:
         if 'food_rating' not in data or data['food_rating'] is None:
             errors['food_rating'] = ['Food quality rating is required for restaurants, cafes, and bars.']
             
@@ -52,7 +52,7 @@ def validate_review_data(self, place, data):
             errors['service_rating'] = ['Service rating is required for restaurants, cafes, and bars.']
             
     # Hotels require cleanliness rating
-    if place.type == 'hotel':
+    if place.place_type == 'hotel':
         if 'cleanliness_rating' not in data or data['cleanliness_rating'] is None:
             errors['cleanliness_rating'] = ['Cleanliness rating is required for hotels.']
             

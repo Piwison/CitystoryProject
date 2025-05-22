@@ -42,14 +42,38 @@ class PlaceViewSet(viewsets.ModelViewSet):
     serializer_class = PlaceSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        serializer.save(created_by=self.request.user)
     def get_queryset(self):
         user = self.request.user
         if user.is_authenticated:
-            return Place.objects.filter(user=user) | Place.objects.filter(draft=False)
+            return Place.objects.filter(created_by=user) | Place.objects.filter(draft=False)
         return Place.objects.filter(draft=False)
 
 class FeatureViewSet(viewsets.ModelViewSet):
     queryset = Feature.objects.all()
     serializer_class = FeatureSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+class ConvertSessionView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        email = request.data.get('email')
+        name = request.data.get('name', '')
+        if not email:
+            return Response({'detail': 'Email is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        User = get_user_model()
+        user, created = User.objects.get_or_create(email=email, defaults={'name': name})
+        if created or (not user.name and name):
+            user.name = name
+            user.save()
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            'token': str(refresh.access_token),
+            'refreshToken': str(refresh),
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'name': user.name,
+            }
+        })

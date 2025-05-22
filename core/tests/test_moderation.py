@@ -3,7 +3,7 @@ from django.urls import reverse
 from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase, APIClient
 from rest_framework import status
-from core.models import Place, Review, Photo, Notification
+from core.models import Place, Review, PlacePhoto, Notification
 
 User = get_user_model()
 

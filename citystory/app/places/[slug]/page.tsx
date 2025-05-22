@@ -1,3 +1,5 @@
+"use client";
+
 import type { Metadata } from "next"
 import Image from "next/image"
 import Link from "next/link"
@@ -17,13 +19,14 @@ import { useSubmitReview, useToggleHelpfulReview } from '@/hooks/useReviews'
 import { useState } from 'react'
 import type { PlaceType } from '@/types';
 import ReviewList from '@/components/reviews/ReviewList';
+import { getUserDisplayName, getUserInitials } from "@/lib/utils"
 
 // In a real app, this would come from a database
 const mockPlaces: Record<string, {
   id: string;
   name: string;
   slug: string;
-  type: string;
+  placeType: string;
   tags: string[];
   rating: number;
   reviewCount: number;
@@ -53,7 +56,7 @@ const mockPlaces: Record<string, {
     id: "1",
     name: "Elephant Mountain Café",
     slug: "elephant-mountain-cafe",
-    type: "Café",
+    placeType: "Café",
     tags: ["Coffee", "Brunch", "WiFi", "View"],
     rating: 4.8,
     reviewCount: 124,
@@ -115,7 +118,7 @@ const mockPlaces: Record<string, {
     id: "2",
     name: "Din Tai Fung",
     slug: "din-tai-fung",
-    type: "Restaurant",
+    placeType: "Restaurant",
     tags: ["Dumplings", "Taiwanese", "Famous", "Family-friendly"],
     rating: 4.9,
     reviewCount: 356,
@@ -219,7 +222,7 @@ export default function PlaceDetailPage({ params }: any) {
             </div>
             <div className="flex-1">
               <div className="flex flex-wrap gap-2 mb-2">
-                <Badge className="bg-[#3F72AF] text-white">{place.type}</Badge>
+                <Badge className="bg-[#3F72AF] text-white">{place.placeType}</Badge>
                 {place.tags.slice(0, 3).map((tag) => (
                   <Badge key={tag} variant="outline" className="border-[#DBE2EF] text-[#112D4E]">
                     {tag}
@@ -253,10 +256,7 @@ export default function PlaceDetailPage({ params }: any) {
                     {place.contributors.slice(0, 3).map((contributor, i) => (
                       <Avatar key={i} className="border-2 border-white h-8 w-8">
                         <AvatarFallback className="bg-[#3F72AF] text-white text-xs">
-                          {contributor
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")}
+                          {typeof contributor === 'object' ? getUserInitials(contributor) : contributor.split(" ").map((n) => n[0]).join("")}
                         </AvatarFallback>
                       </Avatar>
                     ))}
@@ -354,7 +354,7 @@ export default function PlaceDetailPage({ params }: any) {
                     <div className="bg-red-100 text-red-700 p-3 rounded mb-4 text-center">{reviewError}</div>
                   )}
                   <ReviewForm
-                    placeType={place.type.toLowerCase() as PlaceType}
+                    placeType={place.placeType.toLowerCase() as PlaceType}
                     placeId={place.id}
                     placeTitle={place.name}
                     onSubmit={async (data) => {
@@ -388,7 +388,7 @@ export default function PlaceDetailPage({ params }: any) {
                     helpfulCount: r.helpful,
                     userHasMarkedHelpful: false, // Fill with actual state if available
                   }))}
-                  placeType={place.type.toLowerCase() as PlaceType}
+                  placeType={place.placeType.toLowerCase() as PlaceType}
                   onHelpfulToggle={async (reviewId, isHelpful) => {
                     await toggleHelpfulReview.mutateAsync({ reviewId, isHelpful });
                   }}
@@ -569,7 +569,7 @@ export default function PlaceDetailPage({ params }: any) {
                           <Star className="h-3 w-3 fill-[#FFD700] text-[#FFD700] mr-1" />
                           <span>{similarPlace.rating}</span>
                           <span className="mx-1">•</span>
-                          <span>{similarPlace.type}</span>
+                          <span>{similarPlace.placeType}</span>
                         </div>
                       </div>
                     </Link>

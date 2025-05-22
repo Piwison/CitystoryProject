@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAuth } from '@/context/AuthContext'
+import { getUserDisplayName, getUserInitials } from "@/lib/utils"
 
 export default function SettingsPage() {
   const { user } = useAuth()
@@ -106,17 +107,14 @@ export default function SettingsPage() {
                 <div className="flex flex-col items-center py-4">
                   <Avatar className="h-20 w-20 mb-4">
                     {user?.avatarUrl ? (
-                      <AvatarImage src={user.avatarUrl || "/placeholder.svg"} alt={user.name} />
+                      <AvatarImage src={user.avatarUrl || "/placeholder.svg"} alt={getUserDisplayName(user || {})} />
                     ) : (
                       <AvatarFallback className="bg-[#3F72AF] text-white text-xl">
-                        {user?.name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")}
+                        {getUserInitials(user || {})}
                       </AvatarFallback>
                     )}
                   </Avatar>
-                  <h3 className="font-medium text-lg text-[#112D4E]">{user?.name}</h3>
+                  <h3 className="font-medium text-lg text-[#112D4E]">{getUserDisplayName(user || {})}</h3>
                   <p className="text-sm text-gray-500">@{user?.username}</p>
                 </div>
 

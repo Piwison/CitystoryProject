@@ -1,59 +1,72 @@
 from django.db import models
 from ..choices import PLACE_TYPE_CHOICES, FEATURE_TYPES
+import uuid
 
 class Feature(models.Model):
     """
     Represents a feature or amenity that can be associated with a Place.
-    Features are categorized by type (e.g., amenity, cuisine) and can be
-    applicable to specific place types.
+    Matches the Feature model in Prisma schema.
     """
-    name = models.CharField(max_length=100, unique=True)
-    type = models.CharField(max_length=50, choices=FEATURE_TYPES, default='other')
-    description = models.TextField(blank=True, default='')
-    icon = models.CharField(max_length=50, blank=True, null=True)
-    
-    # Store applicable types as comma-separated string or use JSONField/ArrayField if DB supports
-    applicable_place_types = models.CharField(
-        max_length=255, 
-        blank=True, 
-        help_text="Comma-separated list of place types this feature applies to (e.g., 'restaurant,cafe'). Leave blank if applicable to all."
-    )
-
-    def __str__(self):
-        return f"{self.name} ({self.get_type_display()})"
+    id = models.CharField(max_length=128, primary_key=True, default=uuid.uuid4)
+    name = models.CharField(max_length=255)
+    icon = models.CharField(max_length=255, null=True, blank=True)
+    feature_type = models.CharField(max_length=50, help_text="Category type: amenity, cuisine, etc.")
 
     class Meta:
-        ordering = ['type', 'name']
+        ordering = ['name']
         indexes = [
             models.Index(fields=['name']),
-            models.Index(fields=['type']),
-            models.Index(fields=['applicable_place_types']),
+            models.Index(fields=['feature_type']),
         ]
-        # Ensure name+type combination is unique
-        unique_together = [['name', 'type']]
 
-    def is_applicable_to_place_type(self, place_type):
-        """
-        Check if this feature is applicable to the given place type.
-        Returns True if applicable_place_types is empty (applicable to all types)
-        or if the specific place_type is in the applicable_place_types list.
-        """
-        if not self.applicable_place_types:
-            return True  # Applicable to all if blank
-        return place_type in [pt.strip() for pt in self.applicable_place_types.split(',')]
+    def __str__(self):
+        return f"{self.name} ({self.feature_type})"
 
-    def get_places_count(self):
-        """
-        Return the number of places that have this feature.
-        """
-        return self.places.count()
-        
     @classmethod
     def get_by_type(cls, feature_type):
         """
         Get all features of a specific type.
         """
-        return cls.objects.filter(type=feature_type)
+        return cls.objects.filter(feature_type=feature_type)
+
+    def is_applicable_to_place_type(self, place_type):
+        """
+        Check if this feature is applicable to the given place type.
+        With the removal of applicable_place_types field, all features are applicable to all place types.
+        """
+        return True  # All features are applicable to all place types now
+
+class PlaceFeature(models.Model):
+    """
+    Junction table for Place and Feature.
+    Matches the PlaceFeature model in Prisma schema.
+    """
+    id = models.CharField(max_length=128, primary_key=True, default=uuid.uuid4)  # Use uuid4 as default
+    place = models.ForeignKey('core.Place', on_delete=models.CASCADE, related_name='place_features')
+    feature = models.ForeignKey(Feature, on_delete=models.CASCADE, related_name='place_features')
+    
+    class Meta:
+        unique_together = ['place', 'feature']
+        indexes = [
+            models.Index(fields=['place']),
+            models.Index(fields=['feature']),
+        ]
+        
+    def __str__(self):
+        return f"{self.place.name} - {self.feature.name}"
+
+    def is_applicable_to_place_type(self, place_type):
+        """
+        Check if this feature is applicable to the given place type.
+        With the removal of applicable_place_types field, all features are applicable to all place types.
+        """
+        return True  # All features are applicable to all place types now
+
+    def get_places_count(self):
+        """
+        Return the number of places that have this feature.
+        """
+        return self.place_features.count()
         
     @classmethod
     def get_types(cls):
@@ -67,4 +80,4 @@ class Feature(models.Model):
         """
         Return a formatted display name including the type.
         """
-        return f"{self.name} ({self.get_type_display()})" 
+        return f"{self.name} ({self.feature_type})" 

@@ -3,17 +3,45 @@ from django.contrib.auth.admin import UserAdmin
 from django.utils.html import format_html
 from django.urls import reverse
 from django.db import models
-from .models import User, Place, Review, Photo, Feature, Notification, HelpfulVote
+from .models import User, Place, Review, PlacePhoto, Feature, Notification, HelpfulVote
+from .choices import PLACE_TYPE_CHOICES, PRICE_LEVEL_CHOICES
+
+# Custom filters for renamed fields
+class PlaceTypeListFilter(admin.SimpleListFilter):
+    title = 'Place Type'
+    parameter_name = 'place_type'
+    
+    def lookups(self, request, model_admin):
+        return PLACE_TYPE_CHOICES
+        
+    def queryset(self, request, queryset):
+        if self.value():
+            return queryset.filter(place_type=self.value())
+        return queryset
+
+class PriceLevelListFilter(admin.SimpleListFilter):
+    title = 'Price Level'
+    parameter_name = 'price_level'
+    
+    def lookups(self, request, model_admin):
+        return PRICE_LEVEL_CHOICES
+        
+    def queryset(self, request, queryset):
+        if self.value():
+            return queryset.filter(price_level=self.value())
+        return queryset
 
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
-    list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff')
+    list_display = ('username', 'email', 'first_name', 'last_name', 'guide_level', 'is_verified', 'is_staff')
     search_fields = ('username', 'email', 'first_name', 'last_name')
     ordering = ('email',)
     
     fieldsets = (
         (None, {'fields': ('email', 'password')}),
-        ('Personal info', {'fields': ('first_name', 'last_name')}),
+        ('Personal info', {'fields': ('first_name', 'last_name', 'avatar', 'bio', 'location')}),
+        ('Guide System', {'fields': ('guide_points', 'guide_level', 'is_verified')}),
+        ('Authentication', {'fields': ('auth_type', 'google_id')}),
         ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
         ('Important dates', {'fields': ('last_login', 'date_joined')}),
     )
@@ -27,12 +55,12 @@ class CustomUserAdmin(UserAdmin):
 class ModeratedModelAdmin(admin.ModelAdmin):
     """Base admin class for models with moderation"""
     list_filter = ['moderation_status', 'created_at']
-    readonly_fields = ['moderation_date', 'moderator']
+    readonly_fields = ['moderated_at', 'moderator']
     actions = ['approve_items', 'reject_items']
     
     def get_list_display(self, request):
         """Add moderation status and actions to list display"""
-        return ('moderation_status_display', 'moderation_date', 'moderator') + self.list_display
+        return ('moderation_status_display', 'moderated_at', 'moderator') + self.list_display
     
     def moderation_status_display(self, obj):
         """Colorized moderation status"""
@@ -83,24 +111,23 @@ class ModeratedModelAdmin(admin.ModelAdmin):
 
 @admin.register(Place)
 class PlaceAdmin(ModeratedModelAdmin):
-    list_display = ('name', 'type', 'price_range', 'user', 'moderation_status', 'created_at')
-    list_filter = ('type', 'price_range', 'moderation_status')
+    list_display = ('name', 'place_type_display', 'price_level_display', 'created_by', 'moderation_status', 'created_at')
+    list_filter = (PlaceTypeListFilter, PriceLevelListFilter, 'moderation_status')
     search_fields = ('name', 'description', 'address')
     readonly_fields = ('created_at', 'updated_at')
-    filter_horizontal = ('features',)
     
     fieldsets = (
         (None, {
-            'fields': ('name', 'description', 'type', 'user')
+            'fields': ('name', 'description', 'place_type', 'created_by')
         }),
         ('Location & Contact', {
             'fields': ('address', 'latitude', 'longitude', 'website', 'phone')
         }),
         ('Business Details', {
-            'fields': ('price_range', 'features')
+            'fields': ('price_level',)
         }),
         ('Moderation', {
-            'fields': ('moderation_status', 'moderation_comment', 'moderation_date', 'moderator')
+            'fields': ('moderation_status', 'moderation_comment', 'moderated_at', 'moderator')
         }),
         ('Metadata', {
             'fields': ('created_at', 'updated_at'),
@@ -108,9 +135,19 @@ class PlaceAdmin(ModeratedModelAdmin):
         })
     )
 
+    def place_type_display(self, obj):
+        """Display the place type from the model attribute"""
+        return obj.place_type
+    place_type_display.short_description = 'Place Type'
+    
+    def price_level_display(self, obj):
+        """Display the price level from the model attribute"""
+        return obj.price_level
+    price_level_display.short_description = 'Price Level'
+
     def save_model(self, request, obj, form, change):
         if not change:  # If creating new object
-            obj.user = request.user
+            obj.created_by = request.user
         super().save_model(request, obj, form, change)
 
 @admin.register(Review)
@@ -125,13 +162,13 @@ class ReviewAdmin(ModeratedModelAdmin):
             'fields': ('place', 'user', 'comment')
         }),
         ('Ratings', {
-            'fields': ('overall_rating', 'food_rating', 'service_rating', 'value_rating', 'cleanliness_rating')
+            'fields': ('overall_rating', 'food_quality', 'service', 'value', 'cleanliness')
         }),
         ('Engagement', {
             'fields': ('helpful_count',)
         }),
         ('Moderation', {
-            'fields': ('moderation_status', 'moderation_comment', 'moderation_date', 'moderator')
+            'fields': ('moderation_status', 'moderation_comment', 'moderated_at', 'moderator')
         }),
         ('Metadata', {
             'fields': ('created_at', 'updated_at'),
@@ -144,12 +181,28 @@ class ReviewAdmin(ModeratedModelAdmin):
             obj.user = request.user
         super().save_model(request, obj, form, change)
 
-@admin.register(Photo)
-class PhotoAdmin(ModeratedModelAdmin):
-    list_display = ('place', 'user', 'moderation_status', 'created_at')
-    list_filter = ('moderation_status',)
+@admin.register(PlacePhoto)
+class PlacePhotoAdmin(ModeratedModelAdmin):
+    list_display = ('place', 'user', 'is_primary', 'is_approved', 'moderation_status', 'created_at')
+    list_filter = ('is_primary', 'is_approved', 'moderation_status')
     search_fields = ('place__name', 'user__username', 'caption')
-    readonly_fields = ('created_at', 'updated_at')
+    readonly_fields = ('created_at', 'updated_at', 'uploaded_at')
+
+    fieldsets = (
+        (None, {
+            'fields': ('place', 'user', 'url', 'caption')
+        }),
+        ('Display Options', {
+            'fields': ('is_primary', 'is_approved')
+        }),
+        ('Moderation', {
+            'fields': ('moderation_status', 'moderation_comment', 'moderated_at', 'moderator')
+        }),
+        ('Metadata', {
+            'fields': ('created_at', 'updated_at', 'uploaded_at'),
+            'classes': ('collapse',)
+        })
+    )
 
     def save_model(self, request, obj, form, change):
         if not change:  # If creating new object
@@ -158,8 +211,8 @@ class PhotoAdmin(ModeratedModelAdmin):
 
 @admin.register(Feature)
 class FeatureAdmin(admin.ModelAdmin):
-    list_display = ('name', 'description', 'applicable_place_types')
-    search_fields = ('name', 'description')
+    list_display = ('name', 'feature_type', 'icon')
+    search_fields = ('name', 'feature_type')
     
     fieldsets = (
         (None, {

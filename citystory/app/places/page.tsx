@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { PlaceList } from '@/components/places/PlaceList';
-import { Place } from '@/lib/types/place';
+import { Place } from '@/types/place';
 
 export default function PlacesPage() {
   const router = useRouter();

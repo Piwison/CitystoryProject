@@ -18,35 +18,82 @@ class PlaceTypeReviewValidator:
     Different place types require different rating fields.
     """
     def validate_review_data(self, place, data):
+        """
+        Validate review data based on place type.
+        
+        API fields use camelCase naming convention while model fields use snake_case:
+        - overallRating → overall_rating
+        - foodQuality → food_quality
+        - service → service (same in both)
+        - cleanliness → cleanliness (same in both)
+        
+        All places require overallRating, while specific place types (restaurants, cafes, etc.)
+        require additional ratings such as foodQuality and service.
+        """
         errors = {}
         
-        # All places require overall_rating
-        if 'overall_rating' not in data or data['overall_rating'] is None:
-            errors['overall_rating'] = ['Overall rating is required for all places.']
+        # All places require overallRating
+        if 'overallRating' not in data or data['overallRating'] is None:
+            errors['overallRating'] = ['Overall rating is required for all places.']
             
         # Food establishments require food and service ratings
-        if place.type in ['restaurant', 'cafe', 'bar']:
-            if 'food_rating' not in data or data['food_rating'] is None:
-                errors['food_rating'] = ['Food quality rating is required for restaurants, cafes, and bars.']
+        if place.place_type in ['restaurant', 'cafe', 'bar']:
+            if 'foodQuality' not in data or data['foodQuality'] is None:
+                errors['foodQuality'] = ['Food quality rating is required for restaurants, cafes, and bars.']
                 
-            if 'service_rating' not in data or data['service_rating'] is None:
-                errors['service_rating'] = ['Service rating is required for restaurants, cafes, and bars.']
+            if 'service' not in data or data['service'] is None:
+                errors['service'] = ['Service rating is required for restaurants, cafes, and bars.']
         
-        # Hotels require cleanliness rating
-        if place.type == 'hotel':
-            if 'cleanliness_rating' not in data or data['cleanliness_rating'] is None:
-                errors['cleanliness_rating'] = ['Cleanliness rating is required for hotels.']
+        # Hotels require cleanliness and service ratings
+        if place.place_type == 'hotel':
+            if 'cleanliness' not in data or data['cleanliness'] is None:
+                errors['cleanliness'] = ['Cleanliness rating is required for hotels.']
                 
-        # Return errors dictionary if any errors found, otherwise None
-        return errors if errors else None
+            if 'service' not in data or data['service'] is None:
+                errors['service'] = ['Service rating is required for hotels.']
+        
+        return errors
 
 class ReviewViewSet(viewsets.ModelViewSet, PlaceTypeReviewValidator):
     """
     ViewSet for managing reviews.
     
+    API Naming Convention:
+        - All API field names use camelCase (e.g., overallRating, foodQuality, helpfulCount)
+        - All database/model fields use snake_case (e.g., overall_rating, food_quality, helpful_count)
+        - API requests should use camelCase field names, which are mapped to snake_case internally
+    
+    API Field Mappings:
+        - overallRating → overall_rating
+        - foodQuality → food_quality
+        - helpfulCount → helpful_count (read-only)
+        - isOwner → SerializerMethodField (read-only)
+        
     Provides CRUD operations for reviews with proper permission handling
     and automatic user/place assignment.
+    
+    list:
+        List all reviews for a specific place.
+        
+    create:
+        Create a new review for a place. Requires authentication.
+        Reviews are validated based on place type (e.g., restaurants require food ratings).
+        
+    retrieve:
+        Get details of a specific review.
+        
+    update/partial_update:
+        Update a review. Only the review owner can update.
+        
+    destroy:
+        Delete a review. Only the review owner can delete.
+        
+    helpful:
+        Toggle the "helpful" vote for a review.
+        Requires authentication. Users can mark reviews as helpful
+        or remove their helpful vote.
     """
+    lookup_field = 'pk'
     permission_classes = [IsAuthenticated, IsOwnerOrReadOnly]
     serializer_class = ReviewSerializer
     filterset_class = ReviewFilter
@@ -59,7 +106,8 @@ class ReviewViewSet(viewsets.ModelViewSet, PlaceTypeReviewValidator):
         - Authenticated users: See their own reviews (any status) + approved reviews
         - Staff/admin: See all reviews
         """
-        place = get_object_or_404(Place, pk=self.kwargs['place_pk'])
+        place_id = self.kwargs.get('place_pk')
+        place = get_object_or_404(Place, pk=place_id)
         user = self.request.user
         
         # Start with base queryset
@@ -78,7 +126,6 @@ class ReviewViewSet(viewsets.ModelViewSet, PlaceTypeReviewValidator):
                 Q(user=user) |  # Their own reviews (any status)
                 Q(moderation_status='APPROVED')  # Approved reviews from others
             )
-            
         return queryset
     
     def create(self, request, *args, **kwargs):
@@ -127,7 +174,6 @@ class ReviewViewSet(viewsets.ModelViewSet, PlaceTypeReviewValidator):
     
     @action(detail=True, methods=['POST'], permission_classes=[IsAuthenticated])
     def helpful(self, request, pk=None, place_pk=None):
-        """Toggle marking a review as helpful."""
         review = self.get_object()
         user = request.user
         
@@ -155,7 +201,7 @@ class ReviewViewSet(viewsets.ModelViewSet, PlaceTypeReviewValidator):
         return Response({
             'status': 'success',
             'action': 'added' if vote_added else 'removed',
-            'helpful_count': helpful_count
+            'helpfulCount': helpful_count
         })
     
     @action(detail=True, methods=['POST'], permission_classes=[IsModeratorOrReadOnly])

@@ -48,23 +48,33 @@ class UserStatusManagementTest(TestCase):
         # The actual name depends on your URLs, but it should be a view that requires authentication
         self.protected_route_url = "/api/places/"
         
-    def authenticate_client(self, user):
-        """Helper method to authenticate a client with a specific user."""
+    def authenticate_client(self, user, password=None):
+        """
+        Authenticate the test client as the given user using JWT.
+        Sets the Authorization header for subsequent requests.
+        """
+        if password is None:
+            password = 'userpass123'
+        # Clear any previous credentials
+        self.client.credentials()
+        # Obtain JWT token
         response = self.client.post(self.login_url, {
             'username': user.username,
-            'password': 'userpass123'  # Same password for all test users
+            'password': password
         })
-        if response.status_code == 200:
-            self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {response.data['access']}")
-            return True
-        return False
+        assert response.status_code in (200, 201), (
+            f"Authentication failed for user {user.username}: {response.status_code} {response.data}"
+        )
+        access_token = response.data['access']
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
+        return access_token
 
     # Admin Status Change Endpoint Tests
     
     def test_admin_can_change_user_status(self):
         """Test that an admin can change a user's status."""
         # Authenticate as admin
-        self.authenticate_client(self.admin_user)
+        self.authenticate_client(self.admin_user, password='adminpass123')
         
         # Try to suspend an active user
         response = self.client.patch(

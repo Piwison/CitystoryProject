@@ -1,44 +1,50 @@
 from django.db import models
 from django.conf import settings
 from django.db.models import Avg
-from django.core.validators import URLValidator
+from django.core.validators import URLValidator, MinValueValidator, MaxValueValidator
 from django.core.exceptions import ValidationError
 from django.utils.text import slugify
 from model_utils.fields import StatusField
 from model_utils import Choices
 from model_utils.tracker import FieldTracker
 from .mixins import TimestampMixin, ModerationMixin
-from ..choices import PLACE_TYPE_CHOICES, PRICE_RANGE_CHOICES, DISTRICT_CHOICES
+from ..choices import PLACE_TYPE_CHOICES, PRICE_LEVEL_CHOICES, DISTRICT_CHOICES
 
 class Place(TimestampMixin, ModerationMixin):
     """
     A place that can be reviewed and rated.
+    Matches the Place model in Prisma schema.
     """
+    id = models.CharField(max_length=128, primary_key=True, default='')  # Matching cuid field from Prisma
     name = models.CharField(max_length=255)
     slug = models.SlugField(max_length=255, blank=True, unique=True, null=True)
-    description = models.TextField(blank=True, default='')
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    type = models.CharField(max_length=50, choices=PLACE_TYPE_CHOICES)
-    price_range = models.CharField(
-        max_length=10, 
-        choices=PRICE_RANGE_CHOICES,
-        help_text='Price range in NT$ (0=Free, 200=NT$1-200, 400=NT$200-400, 600=NT$400-600, 800=NT$600-800, 1000=NT$800-1000, 1500=NT$1000-1500, 2000=NT$1500-2000, 2000+=NT$2000+)'
+    address = models.CharField(max_length=255)
+    district = models.CharField(
+        max_length=50, 
+        choices=DISTRICT_CHOICES, 
+        null=True, 
+        blank=True,
+        help_text="District in Taipei"
     )
-    address = models.CharField(max_length=255, blank=True, default='')
-    district = models.CharField(max_length=50, choices=DISTRICT_CHOICES, null=True, blank=True)
-    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    latitude = models.FloatField(null=True, blank=True, help_text="Auto-generated from address")
+    longitude = models.FloatField(null=True, blank=True, help_text="Auto-generated from address")
+    place_type = models.CharField(max_length=50, choices=PLACE_TYPE_CHOICES)
+    avg_rating = models.FloatField(null=True, blank=True)  # Matches avgRating in Prisma
+    price_level = models.IntegerField(null=True, blank=True)
+    description = models.TextField(blank=True, null=True)
+    google_maps_link = models.URLField(max_length=255, validators=[URLValidator()], null=True, blank=True)  # Matches googleMapsLink in Prisma
+    
+    # Status field is already handled by ModerationMixin (moderation_status)
+    contributor_id = models.CharField(max_length=128, null=True, blank=True)  # Matches contributorId in Prisma
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='places', null=True, blank=True)
+    
+    # Many-to-many relationships
+    features = models.ManyToManyField('Feature', related_name='places', blank=True, through='PlaceFeature')
+    
+    # Extra fields not in Prisma schema but useful for Django
+    draft = models.BooleanField(default=True)
     website = models.URLField(max_length=255, validators=[URLValidator()], null=True, blank=True)
     phone = models.CharField(max_length=20, null=True, blank=True)
-    features = models.ManyToManyField('Feature', related_name='places', blank=True)
-    draft = models.BooleanField(default=True)
-
-    # Aggregate ratings (updated by reviews)
-    average_rating = models.FloatField(default=0, help_text='Overall average rating across all dimensions')
-    average_food_rating = models.FloatField(default=0, help_text='Average food quality rating')
-    average_service_rating = models.FloatField(default=0, help_text='Average service rating')
-    average_value_rating = models.FloatField(default=0, help_text='Average value for money rating')
-    average_cleanliness_rating = models.FloatField(default=0, help_text='Average cleanliness rating')
 
     # Track changes to moderation_status
     tracker = FieldTracker(['moderation_status'])
@@ -47,9 +53,9 @@ class Place(TimestampMixin, ModerationMixin):
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['name']),
-            models.Index(fields=['slug']),
-            models.Index(fields=['type']),
-            models.Index(fields=['price_range']),
+            models.Index(fields=['created_by']),
+            models.Index(fields=['moderation_status']),
+            models.Index(fields=['place_type']),
             models.Index(fields=['district']),
             models.Index(fields=['created_at']),
             models.Index(fields=['latitude', 'longitude']),
@@ -90,6 +96,9 @@ class Place(TimestampMixin, ModerationMixin):
 
     def save(self, *args, **kwargs):
         """Custom save method"""
+        if self.created_by and not self.contributor_id:
+            self.contributor_id = self.created_by.id
+        
         self.clean()
         
         # Generate slug if it doesn't exist
@@ -106,32 +115,18 @@ class Place(TimestampMixin, ModerationMixin):
         return reviews.aggregate(Avg('overall_rating'))['overall_rating__avg']
 
     def update_average_ratings(self):
-        """Update all average ratings based on approved reviews"""
+        """Update average rating based on approved reviews"""
         approved_reviews = self.reviews.filter(moderation_status='APPROVED')
         if not approved_reviews.exists():
-            self.average_rating = 0
-            self.average_food_rating = 0
-            self.average_service_rating = 0
-            self.average_value_rating = 0
-            self.average_cleanliness_rating = 0
+            self.avg_rating = 0
         else:
-            aggregates = approved_reviews.aggregate(
-                avg_overall=Avg('overall_rating'),
-                avg_food=Avg('food_rating'),
-                avg_service=Avg('service_rating'),
-                avg_value=Avg('value_rating'),
-                avg_cleanliness=Avg('cleanliness_rating')
-            )
-            self.average_rating = aggregates['avg_overall'] or 0
-            self.average_food_rating = aggregates['avg_food'] or 0
-            self.average_service_rating = aggregates['avg_service'] or 0
-            self.average_value_rating = aggregates['avg_value'] or 0
-            self.average_cleanliness_rating = aggregates['avg_cleanliness'] or 0
+            aggregates = approved_reviews.aggregate(avg_overall=Avg('overall_rating'))
+            self.avg_rating = aggregates['avg_overall'] or 0
         self.save()
 
     def get_features_by_type(self, feature_type):
         """Get all features of a specific type"""
-        return self.features.filter(type=feature_type)
+        return self.features.filter(feature_type=feature_type)
 
     def get_primary_photo(self):
         """Get the primary photo for this place"""
@@ -139,7 +134,7 @@ class Place(TimestampMixin, ModerationMixin):
 
     def get_approved_photos(self):
         """Get all approved photos for this place"""
-        return self.photos.filter(moderation_status='APPROVED').order_by('order', '-created_at')
+        return self.photos.filter(moderation_status='APPROVED').order_by('-uploaded_at')
 
     def get_approved_reviews(self):
         """Get all approved reviews for this place"""
@@ -166,13 +161,9 @@ class Place(TimestampMixin, ModerationMixin):
 
     @property
     def rating_summary(self):
-        """Get a summary of all ratings"""
+        """Get a summary of ratings"""
         return {
-            'overall': self.average_rating,
-            'food': self.average_food_rating,
-            'service': self.average_service_rating,
-            'value': self.average_value_rating,
-            'cleanliness': self.average_cleanliness_rating,
+            'overall': self.avg_rating,
             'total_reviews': self.get_review_count()
         }
 

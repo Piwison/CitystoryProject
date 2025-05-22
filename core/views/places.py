@@ -19,6 +19,11 @@ import logging
 import time
 import math
 from ..utils.geocoding import geocode_address, determine_district
+from django.core.cache import cache
+from django.http import Http404
+from django_filters.rest_framework.filters import BaseInFilter, CharFilter
+from django.db.models import Q
+from django.core.exceptions import EmptyResultSet
 
 # Set up logging with more detail for geolocation queries
 logger = logging.getLogger(__name__)
@@ -40,12 +45,44 @@ class PlacePagination(PageNumberPagination):
     max_page_size = 100
     page_query_param = 'page'
 
+    def paginate_queryset(self, queryset, request, view=None):
+        print(f"[PAGINATOR DEBUG] paginate_queryset called. Queryset count: {queryset.count()}")
+        # Check if queryset is being properly materialized
+        place_list = list(queryset[:5])  # Get first 5 places to debug
+        print(f"[PAGINATOR DEBUG] First few places: {[p.name for p in place_list]}")
+        
+        page_number = request.query_params.get(self.page_query_param, 1)
+        print(f"[PAGINATOR DEBUG] Requested page: {page_number}")
+        
+        result = super().paginate_queryset(queryset, request, view)
+        if result is not None:
+            print(f"[PAGINATOR DEBUG] Paginated result count: {len(result)}")
+        else:
+            print(f"[PAGINATOR DEBUG] Paginated result is None")
+        return result
+
+    def get_paginated_response(self, data):
+        print(f"[PAGINATOR DEBUG] get_paginated_response called. Data count: {len(data)}")
+        return super().get_paginated_response(data)
+
+class SafeCommaSeparatedListFilter(BaseInFilter, CharFilter):
+    def filter(self, qs, value):
+        if not value:
+            return qs
+        if isinstance(value, str):
+            value = [v.strip() for v in value.split(',')]
+        valid_choices = set(dict(DISTRICT_CHOICES).keys())
+        valid_values = [v for v in value if v in valid_choices]
+        if not valid_values:
+            return qs.none()
+        return super().filter(qs, valid_values)
+
 class PlaceFilter(filters.FilterSet):
     """
     Advanced filtering for places.
     
     Supports:
-    - Price range filtering (min/max)
+    - Price level filtering (min/max)
     - Place type filtering with multiple selection
     - Feature filtering (name, type, has_all, has_any)
     - Geolocation-based filtering with optimized distance calculation
@@ -53,28 +90,27 @@ class PlaceFilter(filters.FilterSet):
     - Date range filtering
     - District-based filtering with multiple selection
     """
-    # Price range filters
+    # Price level filters
     min_price = filters.NumberFilter(
-        method='filter_by_price_range',
-        help_text='Minimum price range value in NT$'
+        method='filter_by_price_level',
+        help_text='Minimum price level value (1-4). API parameter: minPrice'
     )
     max_price = filters.NumberFilter(
-        method='filter_by_price_range',
-        help_text='Maximum price range value in NT$'
+        method='filter_by_price_level',
+        help_text='Maximum price level value (1-4). API parameter: maxPrice'
     )
     
-    # Place type filters
+    # Place type filters - use actual field name
     types = filters.MultipleChoiceFilter(
-        field_name='type',
+        field_name='place_type',  # This matches the model field
         choices=PLACE_TYPE_CHOICES,
         help_text='Filter by multiple place types (comma-separated)'
     )
     
     # District filters
-    districts = filters.MultipleChoiceFilter(
+    district = SafeCommaSeparatedListFilter(
         field_name='district',
-        choices=DISTRICT_CHOICES,
-        help_text='Filter by multiple districts (comma-separated)'
+        help_text='Filter by one or more districts (comma-separated, e.g. ?district=xinyi,daan)'
     )
     
     # Feature filters
@@ -135,99 +171,24 @@ class PlaceFilter(filters.FilterSet):
         help_text='Filter places created before this date'
     )
 
-    def filter_by_price_range(self, queryset, name, value):
+    def filter_by_price_level(self, queryset, name, value):
         """
-        Filter places by price range using the new numeric values.
-        Handles specific cases like '2000+' (2000 or greater).
+        Filter places by price_level using integer values.
         
-        DEBUG: Directly access the database instead of using the passed queryset
-        which appears to be empty despite places existing in the database.
+        Maps the API parameters 'minPrice' and 'maxPrice' to database queries on the 'price_level' field.
+        - minPrice → price_level__gte
+        - maxPrice → price_level__lte
         """
-        # Add detailed debug logging
-        print(f"\n======= PRICE RANGE FILTER DEBUG =======")
-        print(f"Filter name: {name}, value: {value}, type: {type(value)}")
-        
-        # Debug the queryset passed to filter method
-        place_count = queryset.count()
-        print(f"Original queryset before filtering has {place_count} places")
-        
-        # BYPASS ISSUE: Get places directly from database instead of using passed queryset
-        from ..models import Place  # Import here to avoid circular imports
-        all_places = Place.objects.all()
-        all_places_count = all_places.count()
-        print(f"Total places in database directly: {all_places_count}")
-        
-        if all_places_count > 0:
-            for place in all_places:
-                print(f"DB place: ID={place.id}, Name={place.name}, Price Range={place.price_range}")
-        
-        # Always convert value to integer for comparison
         try:
             value_int = int(value)
         except (ValueError, TypeError):
-            print(f"Error converting value to int: {value}")
             return queryset
-            
-        # SIMPLIFIED APPROACH - Instead of complex logic, let's explicitly list what each filter should return
+
         if name == 'min_price':
-            # Define eligible ranges based on min_price
-            if value_int <= 0:
-                # All price ranges are eligible
-                eligible_ranges = ['0', '200', '400', '600', '800', '1000', '1500', '2000', '2000+']
-            elif value_int <= 200:
-                eligible_ranges = ['200', '400', '600', '800', '1000', '1500', '2000', '2000+']
-            elif value_int <= 400:
-                eligible_ranges = ['400', '600', '800', '1000', '1500', '2000', '2000+']
-            elif value_int <= 600:
-                eligible_ranges = ['600', '800', '1000', '1500', '2000', '2000+']
-            elif value_int <= 800:
-                eligible_ranges = ['800', '1000', '1500', '2000', '2000+']
-            elif value_int <= 1000:
-                eligible_ranges = ['1000', '1500', '2000', '2000+']
-            elif value_int <= 1500:
-                eligible_ranges = ['1500', '2000', '2000+']
-            elif value_int <= 2000:
-                eligible_ranges = ['2000', '2000+']
-            else:  # > 2000
-                eligible_ranges = ['2000+']
-        
+            return queryset.filter(price_level__gte=value_int)
         elif name == 'max_price':
-            # Define eligible ranges based on max_price
-            if value_int < 200:
-                eligible_ranges = ['0']
-            elif value_int < 400:
-                eligible_ranges = ['0', '200']
-            elif value_int < 600:
-                eligible_ranges = ['0', '200', '400']
-            elif value_int < 800:
-                eligible_ranges = ['0', '200', '400', '600']
-            elif value_int < 1000:
-                eligible_ranges = ['0', '200', '400', '600', '800']
-            elif value_int < 1500:
-                eligible_ranges = ['0', '200', '400', '600', '800', '1000']
-            elif value_int < 2000:
-                eligible_ranges = ['0', '200', '400', '600', '800', '1000', '1500']
-            else:  # >= 2000
-                eligible_ranges = ['0', '200', '400', '600', '800', '1000', '1500', '2000', '2000+']
-        else:
-            # Unknown filter name
-            print(f"Unknown filter name: {name}")
-            return queryset
-            
-        print(f"Eligible price ranges for {name}={value}: {eligible_ranges}")
-        
-        # DIRECTLY filter the database instead of using the provided queryset
-        filtered = Place.objects.filter(price_range__in=eligible_ranges)
-        
-        # Debug the filtered queryset
-        filtered_count = filtered.count()
-        print(f"Filtered queryset has {filtered_count} places")
-        if filtered_count > 0:
-            for place in filtered:
-                print(f"  Place {place.id}: {place.name} - price_range={place.price_range}")
-        
-        print(f"======= END PRICE RANGE FILTER DEBUG =======\n")
-        return filtered
+            return queryset.filter(price_level__lte=value_int)
+        return queryset
 
     def filter_by_rating(self, queryset, name, value):
         """
@@ -335,17 +296,18 @@ class PlaceFilter(filters.FilterSet):
 
     class Meta:
         model = Place
-        fields = [
-            'types', 'price_range', 'draft',
-            'feature_name', 'feature_type',
-            'has_features', 'any_features',
-            'min_rating', 'max_rating',
-            'districts'
-        ]
+        # Don't include any field overrides in Meta.fields
+        # Only include actual model fields or automatically created filter fields
+        fields = []
 
 class PlaceViewSet(viewsets.ModelViewSet):
     """
     ViewSet for viewing and editing places.
+    
+    API Naming Convention:
+        - All API field names use camelCase (e.g., priceLevel, placeType, isPrimary)
+        - All database/model fields use snake_case (e.g., price_level, place_type, is_primary)
+        - Filter parameters use the API camelCase convention (e.g., minPrice, maxPrice)
     
     list:
         Return a paginated list of all places with search, filtering, and sorting capabilities.
@@ -366,19 +328,20 @@ class PlaceViewSet(viewsets.ModelViewSet):
         
         Sorting:
         - Use ?ordering=field for sorting
-        - Available fields: name, created_at, price_range, type, rating, distance
+        - Available fields: name, created_at, price_level, place_type, rating, distance
         - Prefix with '-' for descending order (e.g. ?ordering=-rating)
         - Default: -created_at (newest first)
         - Distance sorting available when using geolocation filters
         
         Filtering:
-        - min_price/max_price: Filter by price range
-        - type: Filter by place type
-        - feature_name: Filter by feature name
-        - feature_type: Filter by feature type
-        - has_features: Filter places with ALL specified features
-        - any_features: Filter places with ANY specified features
-        - created_after/created_before: Filter by creation date
+        - minPrice/maxPrice: Filter by price level (1-4) [maps to price_level model field]
+        - placeType: Filter by place type [maps to place_type model field]
+        - featureName: Filter by feature name [maps to features__name model field]
+        - featureType: Filter by feature type [maps to features__type model field]
+        - hasFeatures: Filter places with ALL specified features
+        - anyFeatures: Filter places with ANY specified features
+        - createdAfter/createdBefore: Filter by creation date
+        - minRating/maxRating: Filter by average rating (1-5)
         
         Geolocation:
         - latitude/longitude: Center point coordinates
@@ -411,12 +374,14 @@ class PlaceViewSet(viewsets.ModelViewSet):
         
         This is useful when address is updated or for places created without coordinates.
     """
-    queryset = Place.objects.all()
+    queryset = Place.objects.all().select_related('created_by').prefetch_related('features')
     serializer_class = PlaceSerializer
     permission_classes = [IsAuthenticated, IsOwnerOrReadOnly]
+
     filterset_class = PlaceFilter
+
     search_fields = ['name', 'description', 'address', 'features__name']
-    ordering_fields = ['name', 'created_at', 'price_range', 'type', 'rating', 'distance']
+    ordering_fields = ['name', 'created_at', 'price_level', 'place_type', 'rating', 'distance']
     ordering = ['-created_at']  # Default ordering
     pagination_class = PlacePagination
 
@@ -424,178 +389,159 @@ class PlaceViewSet(viewsets.ModelViewSet):
         """
         Instantiate and return the list of permissions that this view requires.
         """
-        if self.action in ['list', 'retrieve']:
+        if self.action == 'batch_geocode':
+            permission_classes = [permissions.IsAdminUser]
+        elif self.action == 'geocode':
+            permission_classes = [IsAuthenticated, IsOwnerOrReadOnly]
+        elif self.action in ['list', 'retrieve']:
             permission_classes = []
+        elif self.action == 'districts':
+            permission_classes = []  # Make districts public
         else:
             permission_classes = [IsAuthenticated, IsOwnerOrReadOnly]
         return [permission() for permission in permission_classes]
     
     def get_queryset(self):
         """
-        Get list of places filtered by permissions and moderation status.
+        Return appropriate queryset based on user role:
+        - Anonymous users: approved places only
+        - Regular users: their own + approved places
+        - Staff/admins: all places
         
-        - For anonymous users: Only show approved places
-        - For authenticated users: Show their own places (any status) + approved public places
-        - For staff/admin: Show all places
+        The appropriate filters for moderation status are applied,
+        along with any other filters specified in the request.
         """
         user = self.request.user
+        action = self.action
+        print(f"[DEBUG PV.get_queryset] Action: {action}, User: {user} (is_authenticated={user.is_authenticated})")
         
-        # Start with base queryset with optimized joins
-        queryset = (
-            Place.objects.all()
-            .select_related('user')
-            .prefetch_related('features')
-        )
+        # Base queryset with related fields loaded
+        base_queryset = Place.objects.all().select_related('created_by')
         
-        # Apply distance annotation if latitude and longitude provided
-        latitude = self.request.query_params.get('latitude')
-        longitude = self.request.query_params.get('longitude')
-        
-        if latitude is not None and longitude is not None:
-            try:
-                latitude = float(latitude)
-                longitude = float(longitude)
-                queryset = self._annotate_with_distance(queryset, latitude, longitude)
-            except (ValueError, TypeError):
-                pass
-            
-        # Filter by user permission level and moderation status
+        # Add annotations or ordering as needed
+        queryset_to_return = base_queryset
+
+        # Filter by publication and moderation status as appropriate
         if not user.is_authenticated:
-            # Anonymous users can only see approved places
-            queryset = queryset.filter(moderation_status='APPROVED')
-        elif user.is_staff or user.is_superuser:
-            # Staff can see all places
-            pass
-        else:
-            # Regular authenticated users can see their own places + approved places
-            queryset = queryset.filter(
-                Q(user=user) |  # Their own places (any status)
-                Q(moderation_status='APPROVED')  # Approved places from others
+            # Anonymous users see only published and approved places
+            print(f"[DEBUG PV.get_queryset] Anonymous user, filtering for APPROVED, non-draft places")
+            print(f"[DEBUG PV.get_queryset] Before filter, count: {queryset_to_return.count()}")
+            
+            # Use Q objects to build the filter
+            from django.db.models import Q
+            queryset_to_return = queryset_to_return.filter(
+                Q(draft=False) & Q(moderation_status__exact='APPROVED')
             )
             
-        # Annotate with helpful review count and feature count if search fields include them
-        search_fields = getattr(self, 'search_fields', None)
-        if search_fields and 'features__name' in search_fields:
-            # Optimize the query by annotating with feature count
-            queryset = queryset.annotate(feature_count=Count('features', distinct=True))
-                
-        # Apply default ordering if none specified
-        ordering = self.request.query_params.get('ordering', None)
-        if ordering is None:
-            queryset = queryset.order_by('-created_at')
+            print(f"[DEBUG PV.get_queryset] After filter, count: {queryset_to_return.count()}")
             
-        return queryset
+            # Print the SQL query for debugging
+            try:
+                print(f"[DEBUG PV.get_queryset] SQL: {queryset_to_return.query}")
+            except Exception as e:
+                print(f"[DEBUG PV.get_queryset] Error getting SQL query: {str(e)}")
+            
+            # List the actual places to verify the data
+            first_places = list(queryset_to_return[:5])
+            print(f"[DEBUG PV.get_queryset] First places: {[p.name for p in first_places]}")
+            
+            if queryset_to_return.count() == 0:
+                # Check if there are any places that should match
+                all_approved = Place.objects.filter(
+                    Q(draft=False) & Q(moderation_status__exact='APPROVED')
+                ).count()
+                print(f"[DEBUG PV.get_queryset] Total approved places in DB: {all_approved}")
+                
+        elif user.is_staff or user.is_superuser:
+            pass # Staff/superuser see all
+        else: # Authenticated non-staff user
+            # Regular users see their own places (any status) + approved places from others
+            print(f"[DEBUG PV.get_queryset] Authenticated user: {user}, filtering for own places + APPROVED places")
+            print(f"[DEBUG PV.get_queryset] Before filter, count: {queryset_to_return.count()}")
+            
+            # Use Q objects and wrap string literals in quotes
+            
+            queryset_to_return = queryset_to_return.filter(
+                Q(created_by=user) | (Q(moderation_status__exact='APPROVED') & Q(draft=False))
+            )
+            
+            print(f"[DEBUG PV.get_queryset] After filter, count: {queryset_to_return.count()}")
+            
+            # Print the SQL query for debugging
+            try:
+                print(f"[DEBUG PV.get_queryset] SQL: {queryset_to_return.query}")
+            except Exception as e:
+                print(f"[DEBUG PV.get_queryset] Error getting SQL query: {str(e)}")
+            
+            # List the actual places to verify the data
+            first_places = list(queryset_to_return[:5])
+            print(f"[DEBUG PV.get_queryset] First places: {[p.name for p in first_places]}")
+            
+            if queryset_to_return.count() == 0:
+                # Check if there are any places that should match
+                user_places = Place.objects.filter(created_by=user).count()
+                approved_places = Place.objects.filter(
+                    Q(draft=False) & Q(moderation_status__exact='APPROVED')
+                ).count()
+                print(f"[DEBUG PV.get_queryset] Total user places in DB: {user_places}")
+                print(f"[DEBUG PV.get_queryset] Total approved places in DB: {approved_places}")
+
+        # Apply ordering for list views (if not 'publish' action)
+        if action != 'publish':
+            queryset_to_return = self.filter_queryset(queryset_to_return)
+        
+        try:
+            print(f"[DEBUG PV.get_queryset] For action '{action}', final SQL before return: {queryset_to_return.query}")
+        except Exception as e:
+            print(f"[DEBUG PV.get_queryset] Error getting final SQL query: {str(e)}")
+            
+        try:
+            print(f"[DEBUG PV.get_queryset] Final queryset count: {queryset_to_return.count()}")
+        except EmptyResultSet:
+            return base_queryset.none()
+        except Exception as e:
+            print(f"[DEBUG PV.get_queryset] Error getting final count: {str(e)}")
+            # Return an empty queryset when we get an EmptyResultSet
+            return base_queryset.none()
+                
+        return queryset_to_return
 
     def perform_create(self, serializer):
         """Set the user to the current user when creating a place"""
-        serializer.save(user=self.request.user)
+        serializer.save(created_by=self.request.user)
+
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsOwnerOrReadOnly])
     def publish(self, request, pk=None):
-        """
-        Change a place from draft to published state.
-        Only the owner can publish their place.
-        When a place is published, it transitions from draft to pending moderation.
-        """
-        place = self.get_object()
-        if not place.draft:
+        print(f"[DEBUG PV.publish] Method entered for place id={pk}, User: {request.user.username}")
+
+        place_instance = self.get_object() # <--- REVERT TO THIS
+        print(f"[DEBUG PV.publish] self.get_object() returned: {place_instance.name if place_instance else 'None'}, Draft: {place_instance.draft if place_instance else 'N/A'}")
+
+        if not place_instance.draft:
+            print(f"[DEBUG PV.publish] Place pk={pk} is already published (not draft).")
             return Response(
                 {'detail': 'This place is already published.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
-        place.draft = False
-        place.moderation_status = 'PENDING'
-        place.save(update_fields=['draft', 'moderation_status'])
-        
-        # Invalidate relevant caches
-        cache.delete_pattern("places_list:*")
-        
-        serializer = self.get_serializer(place)
+
+        place_instance.draft = False
+        place_instance.moderation_status = 'PENDING' # It becomes pending after publishing
+        place_instance.save(update_fields=['draft', 'moderation_status'])
+        print(f"[DEBUG PV.publish] Place pk={pk} successfully published. Draft: {place_instance.draft}, Status: {place_instance.moderation_status}")
+
+        if hasattr(cache, 'delete_pattern'):
+            try:
+                cache.delete_pattern("places_list:*")
+                print(f"[DEBUG PV.publish] Cache pattern 'places_list:*' deleted.")
+            except Exception as e:
+                print(f"[DEBUG PV.publish] Error calling cache.delete_pattern: {e}")
+        else:
+            print(f"[DEBUG PV.publish] Cache backend ({type(cache).__name__}) does not support 'delete_pattern'.")
+
+        serializer = self.get_serializer(place_instance) # Use the instance from get_object()
         return Response(serializer.data)
 
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsOwnerOrReadOnly])
-    def geocode(self, request, pk=None):
-        """
-        Geocode the place's address to get latitude, longitude, and district.
-        
-        This is useful when address is updated or for places created without coordinates.
-        """
-        place = self.get_object()
-        
-        # Check if place has an address
-        if not place.address:
-            return Response(
-                {"detail": "Place has no address to geocode."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Call geocoding service
-        coordinates = geocode_address(place.address)
-        if not coordinates:
-            return Response(
-                {"detail": "Geocoding failed for this address."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        latitude, longitude = coordinates
-        place.latitude = latitude
-        place.longitude = longitude
-        
-        # Try to determine district if not already set
-        if not place.district:
-            district = determine_district(latitude, longitude)
-            if district:
-                place.district = district
-        
-        place.save(update_fields=['latitude', 'longitude', 'district'])
-        
-        response_data = {
-            'latitude': place.latitude,
-            'longitude': place.longitude,
-            'district': place.district,
-        }
-        
-        return Response(response_data, status=status.HTTP_200_OK)
-
-    @action(detail=False, methods=['post'], permission_classes=[permissions.IsAdminUser])
-    def batch_geocode(self, request):
-        """
-        Batch geocode places with addresses but no coordinates.
-        Admin/staff only endpoint for bulk operations.
-        """
-        from ..utils.geocoding import batch_geocode_places
-        
-        # Limit to a reasonable number or use pagination for large sets
-        limit = int(request.data.get('limit', 100))
-        
-        # Filter places with addresses but no coordinates
-        places = Place.objects.filter(
-            address__isnull=False,
-            address__gt='',
-            latitude__isnull=True,
-            longitude__isnull=True
-        )
-        
-        if not places.exists():
-            return Response(
-                {"detail": "No places found that need geocoding."},
-                status=status.HTTP_200_OK
-            )
-        
-        # Only take the first 'limit' places
-        places_to_process = list(places[:limit])
-        
-        # Perform batch geocoding
-        success_count, failure_count = batch_geocode_places(places_to_process)
-        
-        response_data = {
-            'success_count': success_count,
-            'failure_count': failure_count,
-            'total_processed': success_count + failure_count,
-        }
-        
-        return Response(response_data, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['get'])
     def near_me(self, request):
@@ -637,7 +583,7 @@ class PlaceViewSet(viewsets.ModelViewSet):
         # Apply additional filters
         place_type = request.query_params.get('type')
         if place_type:
-            nearby_places = nearby_places.filter(type=place_type)
+            nearby_places = nearby_places.filter(place_type=place_type)
         
         features = request.query_params.get('features')
         if features:
@@ -648,7 +594,7 @@ class PlaceViewSet(viewsets.ModelViewSet):
         if not request.user.is_staff:
             nearby_places = nearby_places.filter(
                 Q(moderation_status='APPROVED') |
-                (Q(user=request.user) & ~Q(moderation_status='REJECTED'))
+                (Q(created_by=request.user) & ~Q(moderation_status='REJECTED'))
             )
         
         # Calculate distance using the Haversine formula
@@ -671,7 +617,7 @@ class PlaceViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(nearby_places, many=True)
         return Response(serializer.data)
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], permission_classes=[])
     def districts(self, request):
         """
         Get a list of all districts with place counts.

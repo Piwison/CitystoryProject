@@ -29,10 +29,10 @@ class BadgeViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = BadgeSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['type', 'level']
+    filterset_fields = ['category', 'max_level']
     search_fields = ['name', 'description']
-    ordering_fields = ['name', 'level', 'points']
-    ordering = ['level', 'name']
+    ordering_fields = ['name', 'max_level', 'points']
+    ordering = ['max_level', 'name']
 
 class UserBadgeViewSet(viewsets.ReadOnlyModelViewSet):
     """
@@ -50,8 +50,8 @@ class UserBadgeViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = UserBadgeSerializer
     permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]
     filter_backends = [filters.OrderingFilter]
-    ordering_fields = ['awarded_at']
-    ordering = ['-awarded_at']
+    ordering_fields = ['earned_at']
+    ordering = ['-earned_at']
     
     def get_queryset(self):
         """Return badges for the current user."""

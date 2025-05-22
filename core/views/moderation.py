@@ -11,7 +11,7 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Q
 from django.utils import timezone
 
-from ..models import Place, Review, Photo, Notification
+from ..models import Place, Review, PlacePhoto, Notification
 from ..serializers import (
     PlaceSerializer, ReviewSerializer, PhotoSerializer,
     ModerationStatusSerializer
@@ -25,12 +25,25 @@ class BaseModerationViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = None
     
     def get_queryset(self):
-        """Filter queryset based on moderation status."""
-        queryset = self.queryset
-        status = self.request.query_params.get('status', 'PENDING')
-        if status:
-            queryset = queryset.filter(moderation_status=status)
-        return queryset.select_related('moderator')
+        """
+        Filter queryset based on moderation status for the 'list' action (moderation queue).
+        For detail actions, return a less filtered queryset so get_object can find items
+        regardless of their current moderation status (which might be about to change).
+        """
+        queryset = self.queryset # e.g., Place.objects.all()
+
+        if self.action == 'list': # Only apply queue filters for the list view
+            status_param = self.request.query_params.get('status', 'PENDING')
+            if status_param:
+                queryset = queryset.filter(moderation_status=status_param)
+
+            # Assuming 'draft' is relevant for all moderated models when in PENDING queue
+            if status_param == 'PENDING' and hasattr(self.queryset.model, 'draft'):
+                queryset = queryset.filter(draft=False)
+
+        # For detail actions (retrieve, update_status), get_object will filter this by PK.
+        # No further status filtering here ensures get_object can find e.g. an APPROVED item to update.
+        return queryset.select_related('moderator') 
     
     @action(detail=True, methods=['patch'])
     def update_status(self, request, pk=None):
@@ -39,23 +52,23 @@ class BaseModerationViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = ModerationStatusSerializer(data=request.data)
         
         if serializer.is_valid():
-            status = serializer.validated_data['status']
+            new_status = serializer.validated_data['status']
             comment = serializer.validated_data.get('comment', '')
             
             # Update object
-            obj.moderation_status = status
+            obj.moderation_status = new_status
             obj.moderation_comment = comment
             obj.moderated_at = timezone.now()
             obj.moderator = request.user
             obj.save()
             
             # Create notification
-            notification_type = f"{obj._meta.model_name}_{status}"
+            notification_type = f"{obj._meta.model_name}_{new_status}"
             Notification.create_content_notification(obj, notification_type)
             
             return Response({
                 'status': 'success',
-                'message': f'{obj._meta.verbose_name.title()} has been {status}'
+                'message': f'{obj._meta.verbose_name.title()} has been {new_status}'
             })
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -73,4 +86,4 @@ class ReviewModerationViewSet(BaseModerationViewSet):
 class PhotoModerationViewSet(BaseModerationViewSet):
     """ViewSet for moderating photos."""
     serializer_class = PhotoSerializer
-    queryset = Photo.objects.all() 
+    queryset = PlacePhoto.objects.all() 

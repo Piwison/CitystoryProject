@@ -23,9 +23,9 @@ class SavedPlaceModelTest(TestCase):
         
         self.place = Place.objects.create(
             name="Test Place",
-            type="restaurant",
-            price_range="1000",
-            user=self.user,
+            place_type="restaurant",
+            price_level="1000",
+            created_by=self.user,
             moderation_status="approved"
         )
         
@@ -72,33 +72,33 @@ class SavedPlaceAPITest(APITestCase):
         self.place1 = Place.objects.create(
             name='Test Restaurant',
             description='A test restaurant',
-            type='restaurant',
-            price_range='1000',
+            place_type='restaurant',
+            price_level='1000',
             address='123 Test Street, Test City',
             district='Test District',
-            user=self.user,
+            created_by=self.user,
             moderation_status='approved'
         )
         
         self.place2 = Place.objects.create(
             name='Test Cafe',
             description='A test cafe',
-            type='cafe',
-            price_range='2000',
+            place_type='cafe',
+            price_level='2000',
             address='456 Coffee Avenue, Test City',
             district='Coffee District',
-            user=self.user,
+            created_by=self.user,
             moderation_status='approved'
         )
         
         self.place3 = Place.objects.create(
             name='Test Bar',
             description='A test bar',
-            type='bar',
-            price_range='3000',
+            place_type='bar',
+            price_level='3000',
             address='789 Bar Street, Test City',
             district='Bar District',
-            user=self.other_user,
+            created_by=self.other_user,
             moderation_status='approved'
         )
         

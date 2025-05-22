@@ -32,7 +32,7 @@ export interface PlaceSearchResult {
   coordinates: Coordinates;
   rating?: number; // Average rating
   reviewCount?: number;
-  priceLevel?: number; // e.g., 1 (inexpensive) to 4 (very expensive)
+  priceLevel?: string; // e.g., '0' (free), '200', '400', etc.
   imageUrl?: string;
   features: string[]; // Array of feature IDs
   distance?: number; // In kilometers, for 'near me' searches
@@ -51,7 +51,7 @@ export interface SearchFilters {
   placeType?: PlaceType;
   district?: District;
   features?: string[]; // Array of feature IDs
-  priceRange?: [number, number]; // Min and Max price level
+  priceRange?: [string, string]; // Min and Max price level
   coordinates?: Coordinates; // For 'near me' or map-based search
   radius?: number; // Search radius in kilometers, used with coordinates
   sortBy?: 'relevance' | 'rating' | 'distance' | 'price_asc' | 'price_desc';
@@ -88,7 +88,7 @@ export interface PlaceCreationPayload {
   coordinates?: Coordinates; // Optional if backend geocodes from address
   features?: string[]; // Array of feature names or IDs
   imageUrl?: string;
-  priceLevel?: number; // e.g., 0 (Free) to 4 (Very Expensive)
+  priceLevel?: string; // e.g., '0' (Free), '200', '400', etc.
   openingHours?: string; // Simple string or structured object for hours
   phone?: string;
   website?: string;

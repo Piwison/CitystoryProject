@@ -11,14 +11,14 @@
 
 <p>Here's what you wrote:</p>
 <blockquote style="margin: 20px; padding: 10px; border-left: 4px solid #4a90e2; background-color: #f5f5f5;">
-    {{ notification.content_object.text }}
+    {{ notification.content_object.comment }}
 </blockquote>
 
-<p>Your rating: {{ notification.content_object.rating }} / 5</p>
+<p>Your rating: {{ notification.content_object.overall_rating }} / 5</p>
 
 <p>Thank you for contributing to our community! Your insights help others discover great places in the city.</p>
 
-<a href="{{ site_url }}{% url 'place-detail' notification.content_object.place.id %}" class="button">View Your Review</a>
+<a href="{{ site_url }}{% url 'place-detail' notification.content_object.place.slug %}" class="button">View Your Review</a>
 
 <p>Keep exploring and sharing your experiences!</p>
 

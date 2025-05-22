@@ -11,7 +11,7 @@ from ..choices import PLACE_TYPE_CHOICES, FEATURE_TYPES
 
 class FeatureFilter(filters.FilterSet):
     name = filters.CharFilter(lookup_expr='icontains')
-    type = filters.ChoiceFilter(choices=FEATURE_TYPES)
+    feature_type = filters.ChoiceFilter(choices=FEATURE_TYPES)
     applicable_to = filters.ChoiceFilter(
         choices=PLACE_TYPE_CHOICES,
         method='filter_applicable_to',
@@ -22,19 +22,12 @@ class FeatureFilter(filters.FilterSet):
 
     def filter_applicable_to(self, queryset, name, value):
         """Filter features applicable to a specific place type"""
-        if not value:
-            return queryset
-            
-        # Either applicable_place_types is empty (applicable to all)
-        # or it contains the specific place type
-        return queryset.filter(
-            Q(applicable_place_types='') | 
-            Q(applicable_place_types__contains=value)
-        )
+        # Since applicable_place_types field was removed, all features are applicable to all place types
+        return queryset  # Return all features
 
     class Meta:
         model = Feature
-        fields = ['name', 'type', 'applicable_to', 'created_after', 'created_before']
+        fields = ['name', 'feature_type', 'applicable_to', 'created_after', 'created_before']
 
 
 class FeatureViewSet(viewsets.ModelViewSet):
@@ -64,9 +57,9 @@ class FeatureViewSet(viewsets.ModelViewSet):
     serializer_class = FeatureSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     filterset_class = FeatureFilter
-    ordering_fields = ['name', 'type', 'places_count']
-    ordering = ['type', 'name']
-    search_fields = ['name', 'description']
+    ordering_fields = ['name', 'feature_type', 'places_count']
+    ordering = ['feature_type', 'name']
+    search_fields = ['name']
 
     @action(detail=False, methods=['get'])
     def by_place_type(self, request):
@@ -87,7 +80,8 @@ class FeatureViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
             
-        features = self.get_queryset().filter(applicable_place_types__contains=place_type)
+        # With the removal of applicable_place_types, all features are applicable to all place types
+        features = self.get_queryset()
         serializer = self.get_serializer(features, many=True)
         return Response(serializer.data)
         
@@ -98,7 +92,7 @@ class FeatureViewSet(viewsets.ModelViewSet):
         """
         categories = []
         for type_code, type_name in FEATURE_TYPES:
-            count = Feature.objects.filter(type=type_code).count()
+            count = Feature.objects.filter(feature_type=type_code).count()
             categories.append({
                 'type': type_code,
                 'name': type_name,
@@ -113,7 +107,7 @@ class FeatureViewSet(viewsets.ModelViewSet):
         """
         result = {}
         for type_code, type_name in FEATURE_TYPES:
-            features = Feature.objects.filter(type=type_code)
+            features = Feature.objects.filter(feature_type=type_code)
             serializer = self.get_serializer(features, many=True)
             result[type_code] = {
                 'name': type_name,
@@ -199,7 +193,7 @@ class FeatureViewSet(viewsets.ModelViewSet):
             )
             
         # Check permissions
-        if place.user != request.user and not request.user.is_staff:
+        if place.created_by != request.user and not request.user.is_staff:
             return Response(
                 {'error': 'You do not have permission to modify this place'},
                 status=status.HTTP_403_FORBIDDEN
@@ -207,25 +201,9 @@ class FeatureViewSet(viewsets.ModelViewSet):
             
         # Get valid features
         valid_features = Feature.objects.filter(id__in=feature_ids)
-        valid_ids = [f.id for f in valid_features]
-        invalid_ids = [f_id for f_id in feature_ids if int(f_id) not in valid_ids]
+        valid_ids = [str(f.id) for f in valid_features]
+        invalid_ids = [str(f_id) for f_id in feature_ids if str(f_id) not in valid_ids]
         
-        # Validate feature applicability
-        not_applicable = []
-        for feature in valid_features:
-            if not feature.is_applicable_to_place_type(place.type):
-                not_applicable.append({
-                    'id': feature.id,
-                    'name': feature.name,
-                    'type': feature.type
-                })
-        
-        if not_applicable:
-            return Response({
-                'error': 'Some features are not applicable to this place type',
-                'not_applicable': not_applicable
-            }, status=status.HTTP_400_BAD_REQUEST)
-            
         # Add features to place
         place.features.add(*valid_features)
         

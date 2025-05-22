@@ -68,7 +68,7 @@ class UserPoints(TimestampMixin):
             user: User to add points to
             points: Number of points to add (positive integer)
             source_type: Type of action that generated points
-            source_id: Optional ID of the object that generated points
+            source_id: Optional ID of the object that generated points (if UUID, will be included in description)
             description: Optional description of the points
         
         Returns:
@@ -79,14 +79,27 @@ class UserPoints(TimestampMixin):
             source_desc = dict(cls.POINT_SOURCES).get(source_type, source_type)
             description = f"Points for {source_desc}"
         
+        # Handle UUID source_id by including it in the description
+        numeric_source_id = None
+        if source_id:
+            try:
+                numeric_source_id = int(source_id)
+            except (ValueError, TypeError):
+                # If source_id is not an integer (e.g., UUID), include it in the description
+                description = f"{description} (ID: {source_id})"
+        
         # Create the points record
         points_record = cls.objects.create(
             user=user,
             points=points,
             source_type=source_type,
-            source_id=source_id,
+            source_id=numeric_source_id,  # Only use source_id if it's numeric
             description=description
         )
+        
+        # Update User.guide_points
+        user.guide_points = cls.get_total_points(user)
+        user.save(update_fields=['guide_points'])
         
         # Check for level changes
         UserLevel.check_level_progress(user)
@@ -115,6 +128,16 @@ class UserPoints(TimestampMixin):
             source_id=source_id,
             description=description
         )
+
+    @classmethod
+    def sync_user_points_and_level(cls, user):
+        """Ensure User model guide_points and guide_level match current totals"""
+        total_points = cls.get_total_points(user)
+        user_level = UserLevel.objects.get_or_create(user=user)[0]
+        
+        user.guide_points = total_points
+        user.guide_level = user_level.level
+        user.save(update_fields=['guide_points', 'guide_level'])
 
 
 class UserLevel(models.Model):
@@ -227,6 +250,10 @@ class UserLevel(models.Model):
             user_level.level = new_level
             user_level.save(update_fields=['level', 'updated_at'])
             
+            # Update User.guide_level
+            user.guide_level = new_level
+            user.save(update_fields=['guide_level'])
+            
             # Create a notification for the level up
             Notification.objects.create(
                 user=user,
@@ -244,6 +271,10 @@ class UserLevel(models.Model):
             # If this is the first time calculating level and it's above 1,
             # create a notification
             if new_level > 1:
+                # Update User.guide_level
+                user.guide_level = new_level
+                user.save(update_fields=['guide_level'])
+                
                 Notification.objects.create(
                     user=user,
                     notification_type='level_up',

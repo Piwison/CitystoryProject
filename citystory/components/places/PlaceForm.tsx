@@ -71,7 +71,7 @@ interface Place {
   name: string;
   address: string;
   district: string;
-  type: 'restaurant' | 'cafe' | 'bar' | 'attraction' | 'hotel' | 'shopping';
+  placeType: 'restaurant' | 'cafe' | 'bar' | 'attraction' | 'hotel' | 'shopping';
   priceRange: string;
   description?: string;
   googleMapsLink?: string;
@@ -89,7 +89,7 @@ const placeFormSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   address: z.string().min(5, 'Enter a valid address'),
   district: z.string().min(1, 'District is required'),
-  type: z.enum(['restaurant', 'cafe', 'bar', 'attraction', 'hotel', 'shopping']),
+  placeType: z.enum(['restaurant', 'cafe', 'bar', 'attraction', 'hotel', 'shopping']),
   priceRange: z.string(),
   description: z.string().optional(),
   googleMapsLink: z.string().url('Invalid Google Maps URL').optional().or(z.literal('')),
@@ -117,13 +117,13 @@ export function PlaceForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [generatedSlug, setGeneratedSlug] = useState('');
-  const [placeType, setPlaceType] = useState(initialData?.type || 'restaurant');
+  const [placeType, setPlaceType] = useState(initialData?.placeType || 'restaurant');
 
   const validTypes: PlaceType[] = [
     'restaurant', 'cafe', 'bar', 'hotel', 'attraction', 'shopping'
   ];
-  const safeType: PlaceType = validTypes.includes(initialData?.type as PlaceType)
-    ? (initialData?.type as PlaceType)
+  const safeType: PlaceType = validTypes.includes(initialData?.placeType as PlaceType)
+    ? (initialData?.placeType as PlaceType)
     : 'restaurant';
 
   const form = useForm<PlaceFormData>({
@@ -132,7 +132,7 @@ export function PlaceForm({
       name: initialData?.name || '',
       address: initialData?.address || '',
       district: initialData?.district || '',
-      type: safeType,
+      placeType: safeType,
       priceRange: initialData?.priceRange || '0',
       description: initialData?.description || '',
       googleMapsLink: initialData?.googleMapsLink || '',
@@ -328,10 +328,10 @@ export function PlaceForm({
           <CardContent className="space-y-6">
             <FormField<PlaceFormData>
               control={form.control}
-              name="type"
+              name="placeType"
               render={({ field }) => (
                 <PlaceTypeSelector 
-                  name="type"
+                  name="placeType"
                   onChange={handlePlaceTypeChange}
                 />
               )}

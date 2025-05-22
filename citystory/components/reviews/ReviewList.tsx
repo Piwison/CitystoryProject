@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { getUserDisplayName, getUserInitials } from "@/lib/utils"
 
 type PlaceType = 'restaurant' | 'cafe' | 'bar' | 'hotel' | 'attraction' | 'shopping';
 
@@ -30,8 +31,8 @@ export interface Review {
   authorName: string;
   authorAvatar?: string;
   authorLevel?: string;
-  overallRating: number;
-  foodQuality?: number;
+  overall_rating: number;
+  food_quality?: number;
   service?: number;
   value?: number;
   atmosphere?: number;
@@ -41,7 +42,7 @@ export interface Review {
   comment: string;
   visitDate?: string;
   createdAt: string;
-  helpfulCount: number;
+  helpful_count: number;
   userHasMarkedHelpful?: boolean;
 }
 
@@ -68,11 +69,11 @@ export default function ReviewList({
       case 'newest':
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       case 'highest':
-        return b.overallRating - a.overallRating;
+        return b.overall_rating - a.overall_rating;
       case 'lowest':
-        return a.overallRating - b.overallRating;
+        return a.overall_rating - b.overall_rating;
       case 'helpful':
-        return b.helpfulCount - a.helpfulCount;
+        return b.helpful_count - a.helpful_count;
       default:
         return 0;
     }
@@ -104,10 +105,10 @@ export default function ReviewList({
     if (placeType === 'restaurant' || placeType === 'cafe' || placeType === 'bar') {
       return (
         <div className="grid grid-cols-2 gap-x-8 gap-y-2 mt-3">
-          {review.foodQuality && (
+          {review.food_quality && (
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">Food Quality</span>
-              <StarRating value={review.foodQuality} readOnly size="sm" onChange={() => {}} />
+              <StarRating value={review.food_quality} readOnly size="sm" onChange={() => {}} />
             </div>
           )}
           {review.service && (
@@ -233,13 +234,13 @@ export default function ReviewList({
                   <div className="flex items-start justify-between">
                     <div className="flex gap-3">
                       <Avatar className="h-10 w-10">
-                        <AvatarImage src={review.authorAvatar} alt={review.authorName} />
+                        <AvatarImage src={review.authorAvatar} alt={getUserDisplayName({ name: review.authorName })} />
                         <AvatarFallback>
-                          {review.authorName.substring(0, 2).toUpperCase()}
+                          {getUserInitials({ name: review.authorName })}
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <div className="font-medium">{review.authorName}</div>
+                        <div className="font-medium">{getUserDisplayName({ name: review.authorName })}</div>
                         <div className="flex items-center gap-2 text-sm text-gray-500">
                           <div>
                             {formatDistanceToNow(new Date(review.createdAt), { addSuffix: true })}
@@ -257,7 +258,7 @@ export default function ReviewList({
                     </div>
                     
                     <StarRating 
-                      value={review.overallRating} 
+                      value={review.overall_rating} 
                       readOnly 
                       size="sm" 
                       onChange={() => {}} 
@@ -319,7 +320,7 @@ export default function ReviewList({
                         {helpfulLoading === review.id ? (
                           <span className="animate-spin inline-block mr-1 w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full align-middle"></span>
                         ) : null}
-                        Helpful {review.helpfulCount > 0 && `(${review.helpfulCount})`}
+                        Helpful {review.helpful_count > 0 && `(${review.helpful_count})`}
                       </Button>
                     )}
                   </div>

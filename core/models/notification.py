@@ -31,7 +31,7 @@ class Notification(models.Model):
 
     # Generic relation to the content object (Review, Photo, Place)
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True, blank=True)
-    object_id = models.PositiveIntegerField(null=True, blank=True)
+    object_id = models.CharField(max_length=255, null=True, blank=True)
     content_object = GenericForeignKey('content_type', 'object_id')
 
     class Meta:
@@ -58,6 +58,8 @@ class Notification(models.Model):
         # Determine the user to notify
         if hasattr(content_obj, 'user'):
             user = content_obj.user
+        elif hasattr(content_obj, 'created_by'):
+            user = content_obj.created_by
         elif hasattr(content_obj, 'uploader'):
             user = content_obj.uploader
         elif hasattr(content_obj, 'owner'):

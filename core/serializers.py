@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import Place, Review, Photo, Feature, Notification, HelpfulVote, SavedPlace
+from .models import Place, Review, PlacePhoto, Feature, Notification, HelpfulVote, SavedPlace
 from .models import Badge, UserBadge, UserPoints, UserLevel
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
@@ -14,9 +14,13 @@ logger = logging.getLogger(__name__)
 
 class UserSerializer(serializers.ModelSerializer):
     """Serializer for user model."""
+    firstName = serializers.CharField(source='first_name')
+    lastName = serializers.CharField(source='last_name')
+    authType = serializers.CharField(source='auth_type')
+    
     class Meta:
         model = User
-        fields = ['id', 'email', 'first_name', 'last_name', 'auth_type']
+        fields = ['id', 'email', 'firstName', 'lastName', 'authType']
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
@@ -25,10 +29,10 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
         # Add custom claims
         token['email'] = user.email
-        token['first_name'] = user.first_name
-        token['last_name'] = user.last_name
-        token['is_staff'] = user.is_staff
-        token['auth_type'] = user.auth_type
+        token['firstName'] = user.first_name
+        token['lastName'] = user.last_name
+        token['isStaff'] = user.is_staff
+        token['authType'] = user.auth_type
 
         return token
 
@@ -40,17 +44,15 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=False, style={'input_type': 'password'})
-    password_confirm = serializers.CharField(write_only=True, required=False, style={'input_type': 'password'})
-    auth_type = serializers.CharField(required=False, default='local')
-    google_id = serializers.CharField(required=False, allow_blank=True)
+    passwordConfirm = serializers.CharField(write_only=True, required=False, style={'input_type': 'password'}, source='password_confirm')
+    authType = serializers.CharField(required=False, default='local', source='auth_type')
+    googleId = serializers.CharField(required=False, allow_blank=True, source='google_id')
+    firstName = serializers.CharField(source='first_name', required=False)
+    lastName = serializers.CharField(source='last_name', required=False)
 
     class Meta:
         model = User
-        fields = ('email', 'password', 'password_confirm', 'first_name', 'last_name', 'auth_type', 'google_id')
-        extra_kwargs = {
-            'first_name': {'required': False},
-            'last_name': {'required': False}
-        }
+        fields = ('email', 'password', 'passwordConfirm', 'firstName', 'lastName', 'authType', 'googleId')
 
     def validate(self, attrs):
         is_social_account = self.context.get('is_social_account', False)
@@ -78,7 +80,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         is_social_account = self.context.get('is_social_account', False)
         auth_type = validated_data.get('auth_type', 'local')
-        validated_data.pop('password_confirm', None)
+        password_confirm = validated_data.pop('password_confirm', None)
         password = validated_data.get('password')
         google_id = validated_data.pop('google_id', None)
         
@@ -125,26 +127,14 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
 class FeatureSerializer(serializers.ModelSerializer):
     """Serializer for features."""
-    type_display = serializers.CharField(source='get_type_display', read_only=True)
-    applicable_place_types_list = serializers.SerializerMethodField()
-    places_count = serializers.SerializerMethodField()
+    typeDisplay = serializers.CharField(source='get_type_display', read_only=True)
+    featureType = serializers.CharField(source='feature_type')
     
     class Meta:
         model = Feature
         fields = [
-            'id', 'name', 'type', 'type_display', 'description', 'icon',
-            'applicable_place_types', 'applicable_place_types_list', 'places_count'
+            'id', 'name', 'featureType', 'typeDisplay', 'icon'
         ]
-        
-    def get_applicable_place_types_list(self, obj):
-        """Return the applicable place types as a list"""
-        if not obj.applicable_place_types:
-            return []
-        return [pt.strip() for pt in obj.applicable_place_types.split(',')]
-        
-    def get_places_count(self, obj):
-        """Return the number of places with this feature"""
-        return obj.get_places_count()
         
     def validate_name(self, value):
         """Validate that the name is not empty and properly formatted"""
@@ -152,25 +142,30 @@ class FeatureSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Feature name cannot be empty")
         return value.strip().title()  # Convert to title case
         
-    def validate_applicable_place_types(self, value):
-        """Validate the applicable place types"""
-        if not value:
-            return value  # Empty is allowed (applicable to all)
+    def create(self, validated_data):
+        # Extract the feature_type value from the nested dictionary
+        feature_type = validated_data.pop('feature_type', None)
+        if feature_type:
+            # Create feature with the correct field name
+            return Feature.objects.create(feature_type=feature_type, **validated_data)
+        return Feature.objects.create(**validated_data)
+        
+    def update(self, instance, validated_data):
+        # Extract the feature_type value from the nested dictionary
+        feature_type = validated_data.pop('feature_type', None)
+        if feature_type:
+            instance.feature_type = feature_type
             
-        place_types = [pt.strip() for pt in value.split(',')]
-        valid_types = [choice[0] for choice in PLACE_TYPE_CHOICES]
-        
-        for pt in place_types:
-            if pt not in valid_types:
-                raise serializers.ValidationError(
-                    f"Invalid place type: {pt}. Valid types are: {', '.join(valid_types)}"
-                )
-        
-        return ','.join(place_types)  # Normalize the string
+        # Update the remaining fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+            
+        instance.save()
+        return instance
 
 class PlaceSerializer(serializers.ModelSerializer):
     """Serializer for places."""
-    owner = UserSerializer(read_only=True)
+    contributor = UserSerializer(source='created_by', read_only=True)
     features = FeatureSerializer(many=True, read_only=True)
     feature_ids = serializers.PrimaryKeyRelatedField(
         many=True,
@@ -179,43 +174,50 @@ class PlaceSerializer(serializers.ModelSerializer):
         required=False,
         source='features'
     )
-    total_reviews = serializers.SerializerMethodField()
-    average_rating = serializers.SerializerMethodField()
-    is_owner = serializers.SerializerMethodField()
-    status_display = serializers.SerializerMethodField()
+    totalReviews = serializers.SerializerMethodField(source='get_total_reviews')
+    averageRating = serializers.SerializerMethodField(source='get_average_rating')
+    isContributor = serializers.SerializerMethodField(source='get_is_contributor')
+    statusDisplay = serializers.SerializerMethodField(source='get_status_display')
+    placeTypeDisplay = serializers.CharField(source='place_type', read_only=True)
+    
+    # Map snake_case model fields to camelCase API fields
+    googleMapsLink = serializers.URLField(source='google_maps_link', required=False, allow_null=True)
+    priceLevel = serializers.IntegerField(source='price_level', required=False, allow_null=True)
+    placeType = serializers.CharField(source='place_type')
     
     class Meta:
         model = Place
         fields = [
-            'id', 'name', 'description', 'type', 'price_range',
+            'id', 'name', 'description', 'placeType', 'placeTypeDisplay', 'priceLevel',
             'address', 'district', 'slug', 'website', 'phone',
-            'latitude', 'longitude', 'owner', 'features',
-            'feature_ids', 'average_rating', 'total_reviews',
+            'latitude', 'longitude', 'contributor', 'features',
+            'feature_ids', 'averageRating', 'totalReviews',
             'created_at', 'updated_at', 'moderation_status',
-            'is_owner', 'status_display'
+            'isContributor', 'statusDisplay', 'googleMapsLink'
         ]
         read_only_fields = [
-            'owner', 'average_rating', 'total_reviews',
+            'contributor', 'averageRating', 'totalReviews',
             'created_at', 'updated_at', 'moderation_status', 'slug',
-            'is_owner', 'status_display'
+            'isContributor', 'statusDisplay', 'placeTypeDisplay'
         ]
 
-    def get_total_reviews(self, obj):
+    def get_totalReviews(self, obj):
         """Get the total number of approved reviews"""
         return obj.get_review_count()
 
-    def get_average_rating(self, obj):
+    def get_averageRating(self, obj):
         """Get the average rating across all reviews"""
-        return obj.average_rating
+        # Just use avg_rating, the field was renamed
+        return obj.avg_rating if hasattr(obj, 'avg_rating') else None
         
-    def get_is_owner(self, obj):
-        """Determine if the current user is the owner of this place"""
+    def get_isContributor(self, obj):
+        """Determine if the current user is the creator of this place"""
         request = self.context.get('request')
         if request and hasattr(request, 'user') and request.user.is_authenticated:
-            return obj.user == request.user
+            return obj.created_by == request.user
         return False
         
-    def get_status_display(self, obj):
+    def get_statusDisplay(self, obj):
         """Get a user-friendly status display"""
         status_map = {
             'PENDING': 'Pending Approval',
@@ -228,20 +230,13 @@ class PlaceSerializer(serializers.ModelSerializer):
         """
         Validate that all features are applicable to the place type.
         """
-        place_type = self.initial_data.get('type')
+        place_type = self.initial_data.get('place_type')
         if not place_type:
-            place_type = self.instance.type if self.instance else None
+            place_type = self.instance.place_type if self.instance else None
             
-        if place_type:
-            invalid_features = [
-                feature for feature in value
-                if not feature.is_applicable_to_place_type(place_type)
-            ]
-            if invalid_features:
-                feature_names = [f"{f.name} ({f.get_type_display()})" for f in invalid_features]
-                raise serializers.ValidationError(
-                    f"The following features are not applicable to {place_type}: {', '.join(feature_names)}"
-                )
+        # Since Feature.is_applicable_to_place_type() now always returns True,
+        # we don't need to filter for invalid features anymore.
+        # This is left as a placeholder in case we need to reimpose restrictions later
         return value
 
     def create(self, validated_data):
@@ -263,30 +258,38 @@ class ReviewSerializer(serializers.ModelSerializer):
     """Serializer for reviews."""
     user = UserSerializer(read_only=True)
     place = PlaceSerializer(read_only=True)
-    is_owner = serializers.SerializerMethodField()
-    status_display = serializers.SerializerMethodField()
+    isOwner = serializers.SerializerMethodField()
+    statusDisplay = serializers.SerializerMethodField()
+    
+    # Expose camelCase to API but map to snake_case model fields
+    foodQuality = serializers.FloatField(source='food_quality', required=False, allow_null=True)
+    service = serializers.FloatField(required=False, allow_null=True)
+    value = serializers.FloatField(required=False, allow_null=True)
+    cleanliness = serializers.FloatField(required=False, allow_null=True)
+    overallRating = serializers.FloatField(source='overall_rating')
+    helpfulCount = serializers.IntegerField(source='helpful_count', read_only=True)
     
     class Meta:
         model = Review
         fields = [
             'id', 'user', 'place', 'comment',
-            'food_rating', 'service_rating', 'value_rating', 'cleanliness_rating',
-            'overall_rating', 'created_at', 'updated_at', 'moderation_status',
-            'helpful_count', 'is_owner', 'status_display'
+            'foodQuality', 'service', 'value', 'cleanliness',
+            'overallRating', 'created_at', 'updated_at', 'moderation_status',
+            'helpfulCount', 'isOwner', 'statusDisplay'
         ]
         read_only_fields = [
-            'user', 'place', 'overall_rating', 'created_at', 'updated_at',
-            'moderation_status', 'helpful_count', 'is_owner', 'status_display'
+            'user', 'place', 'created_at', 'updated_at',
+            'moderation_status', 'helpfulCount', 'isOwner', 'statusDisplay'
         ]
     
-    def get_is_owner(self, obj):
+    def get_isOwner(self, obj):
         """Determine if the current user is the owner of this review"""
         request = self.context.get('request')
         if request and hasattr(request, 'user') and request.user.is_authenticated:
             return obj.user == request.user
         return False
         
-    def get_status_display(self, obj):
+    def get_statusDisplay(self, obj):
         """Get a user-friendly status display"""
         status_map = {
             'PENDING': 'Pending Approval',
@@ -324,68 +327,116 @@ class ReviewSerializer(serializers.ModelSerializer):
                     "You have already reviewed this place"
                 )
         
+        # Rating fields are now correctly using snake_case for model references
+        rating_fields = ['food_quality', 'service', 'value', 'cleanliness']
+        
         # Validate rating values
-        rating_fields = ['food_rating', 'service_rating', 'value_rating', 'cleanliness_rating']
         for field in rating_fields:
-            if field in data:
-                rating = data[field]
-                if rating is not None and not (1 <= rating <= 5):
-                    raise serializers.ValidationError(
-                        f"{field} must be between 1 and 5"
-                    )
+            # Check field in initial_data, handling camelCase conversion for foodQuality
+            api_field = 'foodQuality' if field == 'food_quality' else field
+            if api_field in self.initial_data:
+                rating = self.initial_data[api_field]
+                if rating is not None and not (1 <= float(rating) <= 5):
+                    raise serializers.ValidationError({
+                        api_field: f"{field} must be between 1 and 5"
+                    })
         
         # Validate required ratings based on place type
-        if place.type in ['restaurant', 'cafe', 'bar']:
-            required_fields = ['food_rating', 'service_rating', 'value_rating']
-            for field in required_fields:
-                if field not in data or data[field] is None:
-                    raise serializers.ValidationError(
-                        f"{field} is required for {place.type} reviews"
-                    )
+        if place.place_type in ['restaurant', 'cafe', 'bar']:
+            required_fields = [('food_quality', 'foodQuality'), ('service', 'service'), ('value', 'value')]
+            for model_field, api_field in required_fields:
+                if api_field not in self.initial_data or self.initial_data[api_field] is None:
+                    raise serializers.ValidationError({
+                        api_field: f"{model_field} is required for {place.place_type} reviews"
+                    })
         
         return data
 
     def create(self, validated_data):
         """Create a new review and update place ratings"""
+        # Calculate overall_rating if not provided
+        if 'overall_rating' not in validated_data:
+            # Average of provided ratings, excluding None values
+            rating_fields = ['food_quality', 'service', 'value', 'cleanliness']
+            ratings = [validated_data[field] for field in rating_fields if field in validated_data and validated_data[field] is not None]
+            
+            if ratings:
+                validated_data['overall_rating'] = sum(ratings) / len(ratings)
+            else:
+                # Default if no ratings provided
+                validated_data['overall_rating'] = 3.0
+        
         review = super().create(validated_data)
-        review.update_place_ratings()
+        
+        # Update place ratings
+        if hasattr(review.place, 'update_average_ratings'):
+            review.place.update_average_ratings()
+        
         return review
 
     def update(self, instance, validated_data):
         """Update an existing review and recalculate place ratings"""
+        # Recalculate overall_rating if any component rating changed
+        rating_changed = False
+        for field in ['food_quality', 'service', 'value', 'cleanliness']:
+            if field in validated_data and validated_data[field] != getattr(instance, field):
+                rating_changed = True
+                break
+        
+        if rating_changed:
+            # Average of all provided and existing ratings
+            rating_fields = ['food_quality', 'service', 'value', 'cleanliness']
+            ratings = []
+            for field in rating_fields:
+                value = validated_data.get(field, getattr(instance, field))
+                if value is not None:
+                    ratings.append(value)
+            
+            if ratings:
+                validated_data['overall_rating'] = sum(ratings) / len(ratings)
+        
         review = super().update(instance, validated_data)
-        review.update_place_ratings()
+        
+        # Update place ratings
+        if hasattr(review.place, 'update_average_ratings'):
+            review.place.update_average_ratings()
+        
         return review
 
 class PhotoSerializer(serializers.ModelSerializer):
     """Serializer for photos."""
     user = UserSerializer(read_only=True)
     place = PlaceSerializer(read_only=True)
-    is_owner = serializers.SerializerMethodField()
-    status_display = serializers.SerializerMethodField()
+    isOwner = serializers.SerializerMethodField()
+    statusDisplay = serializers.SerializerMethodField()
+    
+    # Map snake_case model fields to camelCase API fields
+    isPrimary = serializers.BooleanField(source='is_primary', required=False)
+    isApproved = serializers.BooleanField(source='is_approved', required=False, read_only=True)
+    uploadedAt = serializers.DateTimeField(source='uploaded_at', read_only=True)
     
     class Meta:
-        model = Photo
+        model = PlacePhoto
         fields = [
-            'id', 'user', 'place', 'image', 'thumbnail',
-            'caption', 'order', 'is_primary',
+            'id', 'user', 'place', 'url',
+            'caption', 'isPrimary', 'isApproved', 'uploadedAt',
             'created_at', 'updated_at', 'moderation_status',
-            'is_owner', 'status_display'
+            'isOwner', 'statusDisplay'
         ]
         read_only_fields = [
-            'user', 'place', 'thumbnail', 'created_at', 
-            'updated_at', 'moderation_status', 'is_owner',
-            'status_display'
+            'user', 'place', 'created_at', 
+            'updated_at', 'moderation_status', 'isOwner',
+            'statusDisplay', 'uploadedAt', 'isApproved'
         ]
     
-    def get_is_owner(self, obj):
+    def get_isOwner(self, obj):
         """Determine if the current user is the uploader of this photo"""
         request = self.context.get('request')
         if request and hasattr(request, 'user') and request.user.is_authenticated:
             return obj.user == request.user
         return False
         
-    def get_status_display(self, obj):
+    def get_statusDisplay(self, obj):
         """Get a user-friendly status display"""
         status_map = {
             'PENDING': 'Pending Approval',
@@ -394,37 +445,37 @@ class PhotoSerializer(serializers.ModelSerializer):
         }
         return status_map.get(obj.moderation_status, obj.moderation_status)
 
-    def validate_order(self, value):
-        """Validate the order field"""
-        if value < 0:
-            raise serializers.ValidationError("Order must be a non-negative number")
-        return value
+    # No order field to validate in PlacePhoto
 
     def validate(self, data):
         """
         Additional validation:
-        - Ensure image is provided on creation
-        - Validate file size and dimensions (handled by model validator)
+        - Ensure URL is provided on creation
         """
-        if not self.instance and not data.get('image'):
+        if not self.instance and not data.get('url'):
             raise serializers.ValidationError({
-                'image': 'An image file is required'
+                'url': 'An image URL is required'
             })
         return data
 
 class NotificationSerializer(serializers.ModelSerializer):
     """Serializer for notifications."""
+    notificationType = serializers.CharField(source='notification_type')
+    isRead = serializers.BooleanField(source='is_read')
+    relatedObjectType = serializers.CharField(source='related_object_type')
+    relatedObjectId = serializers.IntegerField(source='related_object_id')
+    
     class Meta:
         model = Notification
         fields = [
-            'id', 'user', 'notification_type', 'title',
-            'message', 'is_read', 'related_object_type',
-            'related_object_id', 'created_at'
+            'id', 'user', 'notificationType', 'title',
+            'message', 'isRead', 'relatedObjectType',
+            'relatedObjectId', 'created_at'
         ]
         read_only_fields = [
-            'user', 'notification_type', 'title',
-            'message', 'related_object_type',
-            'related_object_id', 'created_at'
+            'user', 'notificationType', 'title',
+            'message', 'relatedObjectType',
+            'relatedObjectId', 'created_at'
         ]
 
 class ModerationStatusSerializer(serializers.Serializer):
@@ -442,19 +493,23 @@ class ModerationStatusSerializer(serializers.Serializer):
 
 class SavedPlaceSerializer(serializers.ModelSerializer):
     """Serializer for saved/bookmarked places."""
-    place_details = PlaceSerializer(source='place', read_only=True)
-    user_email = serializers.EmailField(source='user.email', read_only=True)
+    placeDetails = serializers.SerializerMethodField(source='get_place_details')
+    userEmail = serializers.EmailField(source='user.email', read_only=True)
     
     class Meta:
         model = SavedPlace
         fields = [
-            'id', 'user', 'place', 'place_details', 'notes',
-            'created_at', 'updated_at', 'user_email'
+            'id', 'user', 'place', 'placeDetails', 'notes',
+            'created_at', 'updated_at', 'userEmail'
         ]
         read_only_fields = ['user', 'created_at', 'updated_at']
         extra_kwargs = {
             'place': {'required': False}  # Make place optional for update operations
         }
+    
+    def get_place_details(self, obj):
+        """Get the place details."""
+        return PlaceSerializer(obj.place).data
         
     def validate(self, data):
         """Validate that the user can save this place."""
@@ -470,7 +525,7 @@ class SavedPlaceSerializer(serializers.ModelSerializer):
         if not place:
             raise serializers.ValidationError({'place': 'Place is required'})
             
-        if place.moderation_status != 'approved' and place.user != user:
+        if place.moderation_status != 'approved' and place.created_by != user:
             raise serializers.ValidationError(
                 {'place': 'You can only save approved places or places you own'}
             )
@@ -502,89 +557,97 @@ class SavedPlaceSerializer(serializers.ModelSerializer):
 
 class BadgeSerializer(serializers.ModelSerializer):
     """Serializer for badges."""
-    level_display = serializers.CharField(source='get_level_display', read_only=True)
-    type_display = serializers.CharField(source='get_type_display', read_only=True)
+    levelDisplay = serializers.CharField(source='get_level_display', read_only=True)
+    typeDisplay = serializers.CharField(source='get_category_display', read_only=True)
+    maxLevel = serializers.IntegerField(source='max_level')
+    type = serializers.CharField(source='category')
     
     class Meta:
         model = Badge
         fields = [
-            'id', 'name', 'description', 'type', 'type_display',
-            'level', 'level_display', 'icon', 'points',
-            'requirement_description', 'requirement_code',
-            'created_at', 'updated_at'
+            'id', 'name', 'description', 'type', 'typeDisplay',
+            'maxLevel', 'levelDisplay', 'icon', 'created_at', 'updated_at'
         ]
         read_only_fields = ['created_at', 'updated_at']
 
 class UserBadgeSerializer(serializers.ModelSerializer):
     """Serializer for user badges."""
-    badge_details = BadgeSerializer(source='badge', read_only=True)
+    badgeDetails = BadgeSerializer(source='badge', read_only=True)
+    earnedAt = serializers.DateTimeField(source='earned_at', read_only=True)
     
     class Meta:
         model = UserBadge
         fields = [
-            'id', 'user', 'badge', 'badge_details',
-            'awarded_at', 'created_at', 'updated_at'
+            'id', 'user', 'badge', 'badgeDetails',
+            'earnedAt', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['user', 'awarded_at', 'created_at', 'updated_at']
+        read_only_fields = ['user', 'earnedAt', 'created_at', 'updated_at']
 
 class UserPointsSerializer(serializers.ModelSerializer):
     """Serializer for user points."""
-    source_type_display = serializers.CharField(source='get_source_type_display', read_only=True)
+    sourceTypeDisplay = serializers.CharField(source='get_source_type_display', read_only=True)
+    sourceType = serializers.CharField(source='source_type')
+    sourceId = serializers.IntegerField(source='source_id')
     
     class Meta:
         model = UserPoints
         fields = [
-            'id', 'user', 'points', 'source_type', 'source_type_display',
-            'source_id', 'description', 'created_at', 'updated_at'
+            'id', 'user', 'points', 'sourceType', 'sourceTypeDisplay',
+            'sourceId', 'description', 'created_at', 'updated_at'
         ]
         read_only_fields = ['user', 'created_at', 'updated_at']
 
 class UserLevelSerializer(serializers.ModelSerializer):
     """Serializer for user levels."""
     title = serializers.SerializerMethodField()
-    total_points = serializers.SerializerMethodField()
-    next_level_threshold = serializers.SerializerMethodField()
-    progress_percentage = serializers.SerializerMethodField()
+    totalPoints = serializers.SerializerMethodField()
+    nextLevelThreshold = serializers.SerializerMethodField()
+    progressPercentage = serializers.SerializerMethodField()
     
     class Meta:
         model = UserLevel
         fields = [
-            'id', 'user', 'level', 'title', 'total_points',
-            'next_level_threshold', 'progress_percentage', 'updated_at'
+            'id', 'user', 'level', 'title', 'totalPoints',
+            'nextLevelThreshold', 'progressPercentage', 'updated_at'
         ]
         read_only_fields = ['user', 'level', 'updated_at']
     
     def get_title(self, obj):
         return obj.get_level_title()
     
-    def get_total_points(self, obj):
+    def get_totalPoints(self, obj):
         return UserPoints.get_total_points(obj.user)
     
-    def get_next_level_threshold(self, obj):
+    def get_nextLevelThreshold(self, obj):
         return obj.get_next_level_threshold()
     
-    def get_progress_percentage(self, obj):
+    def get_progressPercentage(self, obj):
         return obj.get_progress_to_next_level()
 
 class UserProfileSerializer(serializers.ModelSerializer):
     """Serializer for user profile with badges and points."""
     badges = serializers.SerializerMethodField()
     level = serializers.SerializerMethodField()
-    total_points = serializers.SerializerMethodField()
-    badge_count = serializers.SerializerMethodField()
+    totalPoints = serializers.SerializerMethodField()
+    badgeCount = serializers.SerializerMethodField()
+    firstName = serializers.CharField(source='first_name')
+    lastName = serializers.CharField(source='last_name')
+    authType = serializers.CharField(source='auth_type', read_only=True)
+    isVerified = serializers.BooleanField(source='is_verified', read_only=True)
+    guideLevel = serializers.IntegerField(source='guide_level', read_only=True)
     
     class Meta:
         model = User
         fields = [
-            'id', 'email', 'first_name', 'last_name', 
-            'auth_type', 'badges', 'level', 'total_points',
-            'badge_count'
+            'id', 'email', 'firstName', 'lastName', 
+            'authType', 'badges', 'level', 'totalPoints',
+            'badgeCount', 'isVerified', 'guideLevel'
         ]
-        read_only_fields = ['email', 'auth_type']
+        read_only_fields = ['email', 'authType', 'isVerified', 'guideLevel']
     
     def get_badges(self, obj):
         # Get top 5 badges by level (highest first)
-        user_badges = UserBadge.objects.filter(user=obj).select_related('badge').order_by('-badge__level')[:5]
+        user_badges = UserBadge.objects.filter(user=obj).select_related('badge').order_by('-badge__max_level')[:5]
         return UserBadgeSerializer(user_badges, many=True).data
     
     def get_level(self, obj):
@@ -594,8 +657,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
         except UserLevel.DoesNotExist:
             return None
     
-    def get_total_points(self, obj):
+    def get_totalPoints(self, obj):
         return UserPoints.get_total_points(obj)
         
-    def get_badge_count(self, obj):
+    def get_badgeCount(self, obj):
         return UserBadge.objects.filter(user=obj).count() 

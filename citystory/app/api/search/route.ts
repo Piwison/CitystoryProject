@@ -1,31 +1,32 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-import { searchPlaces } from "@/lib/api/services/searchService"
+// Remove import of local search service
+// import { searchPlaces } from "@/lib/api/services/searchService"
+
+// Backend API URL
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     
-    const filters = {
-      query: searchParams.get("q") || undefined,
-      placeType: searchParams.get("type") || undefined,
-      district: searchParams.get("location") || undefined,
-      features: searchParams.getAll("features[]"),
-      priceRange: searchParams.has("price_min") && searchParams.has("price_max") ? 
-        [Number(searchParams.get("price_min")), Number(searchParams.get("price_max"))] : 
-        undefined,
-      coordinates: searchParams.has("lat") && searchParams.has("lng") ? 
-        { 
-          lat: Number(searchParams.get("lat")), 
-          lng: Number(searchParams.get("lng")) 
-        } : 
-        undefined,
-      radius: searchParams.has("radius") ? Number(searchParams.get("radius")) : undefined
-    }
-
-    const results = await searchPlaces(filters)
+    // Forward the search request to Django backend with original query params
+    const queryString = searchParams.toString();
+    const response = await fetch(`${BACKEND_URL}/api/search/?${queryString}`);
     
-    return NextResponse.json({ results })
+    // Handle errors from backend
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      console.error("[SEARCH_GET] Backend error:", errorData);
+      return NextResponse.json(
+        { error: errorData || "Backend API error" },
+        { status: response.status }
+      );
+    }
+    
+    // Return the response from backend
+    const data = await response.json();
+    return NextResponse.json(data);
   } catch (error) {
     console.error("Search error:", error)
     return NextResponse.json(
@@ -38,9 +39,29 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const results = await searchPlaces(body)
     
-    return NextResponse.json({ results })
+    // Forward the search request to Django backend
+    const response = await fetch(`${BACKEND_URL}/api/search/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+    
+    // Handle errors from backend
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      console.error("[SEARCH_POST] Backend error:", errorData);
+      return NextResponse.json(
+        { error: errorData || "Backend API error" },
+        { status: response.status }
+      );
+    }
+    
+    // Return the response from backend
+    const data = await response.json();
+    return NextResponse.json(data);
   } catch (error) {
     console.error("Search error:", error)
     return NextResponse.json(

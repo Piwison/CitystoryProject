@@ -13,10 +13,10 @@ def create_test_place():
         
         # Create a test place
         place = Place.objects.create(
-            name='Oasis Coffee Roasting Lab',
+            title='Oasis Coffee Roasting Lab',
             description='A specialty coffee shop in Taipei',
-            type='cafe',
-            price_range='$$',
+            placeType='cafe',
+            priceLevel='$$',
             address='No. 23, Lane 223, Section 4, Zhongxiao East Road, Da\'an District, Taipei City',
             user=user,
             slug='oasis-coffee',

@@ -27,8 +27,8 @@ class SearchAPITestCase(APITestCase):
             description='A great coffee place with excellent pastries and atmosphere',
             address='123 Coffee Street, Xinyi District',
             district='xinyi',
-            type='cafe',
-            price_range='400',
+            place_type='cafe',
+            price_level='400',
             moderation_status='approved',
             user=self.user
         )
@@ -38,8 +38,8 @@ class SearchAPITestCase(APITestCase):
             description='Authentic Japanese ramen with homemade noodles',
             address='456 Noodle Road, Daan District',
             district='daan',
-            type='restaurant',
-            price_range='600',
+            place_type='restaurant',
+            price_level='600',
             moderation_status='approved',
             user=self.user
         )
@@ -49,8 +49,8 @@ class SearchAPITestCase(APITestCase):
             description='Local and imported craft beers with snacks',
             address='789 Beer Avenue, Zhongshan District',
             district='zhongshan',
-            type='bar',
-            price_range='800',
+            place_type='bar',
+            price_level='800',
             moderation_status='approved',
             user=self.user
         )
@@ -61,8 +61,8 @@ class SearchAPITestCase(APITestCase):
             description='Hidden cocktail bar with jazz music',
             address='999 Secret Lane, Xinyi District',
             district='xinyi',
-            type='bar',
-            price_range='1000',
+            place_type='bar',
+            price_level='1000',
             moderation_status='pending',
             draft=True,
             user=self.user
@@ -74,8 +74,8 @@ class SearchAPITestCase(APITestCase):
             description='本格的な日本の寿司',
             address='123 Sushi Road, Daan District',
             district='daan',
-            type='restaurant',
-            price_range='1000',
+            place_type='restaurant',
+            price_level='1000',
             moderation_status='approved',
             user=self.user
         )
@@ -158,8 +158,8 @@ class SearchAPITestCase(APITestCase):
                 description='A test place description',
                 address=f'{i} Test Street, Xinyi District',
                 district='xinyi',
-                type='cafe',
-                price_range='400',
+                place_type='cafe',
+                price_level='400',
                 moderation_status='approved',
                 user=self.user
             )

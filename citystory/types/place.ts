@@ -33,10 +33,10 @@ export interface Place extends CreatePlaceDto {
   id: string;
   contributor_id?: string;
   slug?: string;
-  place_type?: string;
+  placeType?: string;
   location?: string;
   avg_rating?: number;
-  price_range?: number;
+  priceLevel?: string;
   google_maps_link?: string;
   photos: PlacePhoto[];
   createdAt: string;

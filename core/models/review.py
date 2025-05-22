@@ -5,27 +5,26 @@ from model_utils import FieldTracker
 from .mixins import TimestampMixin, ModerationMixin
 
 class Review(TimestampMixin, ModerationMixin):
-    MODERATION_STATUS_CHOICES = [
-        ('PENDING', 'Pending'),
-        ('APPROVED', 'Approved'),
-        ('REJECTED', 'Rejected'),
-    ]
-
+    """
+    Review model for places. 
+    Matches the Review model in Prisma schema.
+    """
+    id = models.CharField(max_length=128, primary_key=True, default='')  # Matching cuid field from Prisma
+    
+    # Relationships
     place = models.ForeignKey('core.Place', on_delete=models.CASCADE, related_name='reviews')
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='reviews')
     
-    # Overall rating is required for all places
+    # Fields matching Prisma schema
     overall_rating = models.FloatField(validators=[MinValueValidator(1), MaxValueValidator(5)])
-    
-    # Specific ratings that might be required based on place type
-    food_rating = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)], null=True, blank=True)
-    service_rating = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)], null=True, blank=True)
-    value_rating = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)], null=True, blank=True)
-    cleanliness_rating = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)], null=True, blank=True)
-    
+    food_quality = models.FloatField(validators=[MinValueValidator(1), MaxValueValidator(5)], null=True, blank=True)
+    service = models.FloatField(validators=[MinValueValidator(1), MaxValueValidator(5)], null=True, blank=True)
+    value = models.FloatField(validators=[MinValueValidator(1), MaxValueValidator(5)], null=True, blank=True)
+    cleanliness = models.FloatField(validators=[MinValueValidator(1), MaxValueValidator(5)], null=True, blank=True)
+
     # Review content
-    comment = models.TextField()
-    helpful_count = models.PositiveIntegerField(default=0)
+    comment = models.TextField(null=True, blank=True)
+    helpful_count = models.PositiveIntegerField(default=0) 
     
     # Track changes to moderation_status
     tracker = FieldTracker(['moderation_status'])
@@ -35,6 +34,7 @@ class Review(TimestampMixin, ModerationMixin):
         unique_together = ['place', 'user']  # One review per user per place
         indexes = [
             models.Index(fields=['helpful_count']),
+            models.Index(fields=['created_at']),
         ]
 
     def __str__(self):

@@ -5,7 +5,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Menu, X, MapPin, User, LogOut, Settings, Heart } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
+import { cn, getUserDisplayName, getUserInitials } from "@/lib/utils"
 import { useSession, signOut as nextAuthSignOut } from "next-auth/react"
 import {
   DropdownMenu,
@@ -93,10 +93,20 @@ export default function Header() {
                   <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                     <Avatar className="h-10 w-10">
                       {session.user.image ? (
-                        <AvatarImage src={session.user.image} alt={session.user.name || session.user.email || ''} />
+                        <AvatarImage src={session.user.image} alt={getUserDisplayName({
+                          name: session.user.name ?? undefined,
+                          firstName: (session.user as any).firstName ?? undefined,
+                          lastName: (session.user as any).lastName ?? undefined,
+                          email: session.user.email ?? undefined,
+                        })} />
                       ) : (
                         <AvatarFallback className="bg-[#3F72AF] text-white">
-                          {getInitials(session.user.name || session.user.email || '')}
+                          {getUserInitials({
+                            name: session.user.name ?? undefined,
+                            firstName: (session.user as any).firstName ?? undefined,
+                            lastName: (session.user as any).lastName ?? undefined,
+                            email: session.user.email ?? undefined,
+                          })}
                         </AvatarFallback>
                       )}
                     </Avatar>
@@ -105,7 +115,12 @@ export default function Header() {
                 <DropdownMenuContent className="w-56" align="end" forceMount>
                   <DropdownMenuLabel>
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">{session.user.name}</p>
+                      <p className="text-sm font-medium leading-none">{getUserDisplayName({
+                        name: session.user.name ?? undefined,
+                        firstName: (session.user as any).firstName ?? undefined,
+                        lastName: (session.user as any).lastName ?? undefined,
+                        email: session.user.email ?? undefined,
+                      })}</p>
                       <p className="text-xs leading-none text-muted-foreground">{session.user.email}</p>
                     </div>
                   </DropdownMenuLabel>
@@ -167,15 +182,30 @@ export default function Header() {
                   <div className="flex items-center space-x-3 py-2 border-t pt-4">
                     <Avatar className="h-10 w-10">
                       {session.user.image ? (
-                        <AvatarImage src={session.user.image} alt={session.user.name || session.user.email || ''} />
+                        <AvatarImage src={session.user.image} alt={getUserDisplayName({
+                          name: session.user.name ?? undefined,
+                          firstName: (session.user as any).firstName ?? undefined,
+                          lastName: (session.user as any).lastName ?? undefined,
+                          email: session.user.email ?? undefined,
+                        })} />
                       ) : (
                         <AvatarFallback className="bg-[#3F72AF] text-white">
-                          {getInitials(session.user.name || session.user.email || '')}
+                          {getUserInitials({
+                            name: session.user.name ?? undefined,
+                            firstName: (session.user as any).firstName ?? undefined,
+                            lastName: (session.user as any).lastName ?? undefined,
+                            email: session.user.email ?? undefined,
+                          })}
                         </AvatarFallback>
                       )}
                     </Avatar>
                     <div>
-                      <p className="font-medium">{session.user.name}</p>
+                      <p className="font-medium">{getUserDisplayName({
+                        name: session.user.name ?? undefined,
+                        firstName: (session.user as any).firstName ?? undefined,
+                        lastName: (session.user as any).lastName ?? undefined,
+                        email: session.user.email ?? undefined,
+                      })}</p>
                       <p className="text-xs text-gray-500">{session.user.email}</p>
                     </div>
                   </div>

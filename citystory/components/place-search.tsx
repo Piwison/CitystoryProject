@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import Image from "next/image"
 
 interface PlaceSearchProps {
   value: string
@@ -24,23 +25,26 @@ const mockExistingPlaces = [
   {
     id: "1",
     name: "Elephant Mountain Café",
-    type: "Café",
+    placeType: "Café",
     location: "Xinyi District",
     image: "/laptop-cafe-buzz.png",
+    address: "No. 15, Lane 150, Section 5, Xinyi Road, Xinyi District, Taipei City",
   },
   {
     id: "2",
     name: "Din Tai Fung",
-    type: "Restaurant",
+    placeType: "Restaurant",
     location: "Xinyi District",
     image: "/waterfront-elegance.png",
+    address: "No. 194, Section 2, Xinyi Road, Da'an District, Taipei City",
   },
   {
     id: "3",
     name: "Taipei Night Market",
-    type: "Night Market",
+    placeType: "Night Market",
     location: "Shilin District",
     image: "/craft-beer-haven.png",
+    address: "No. 101, Jihe Road, Shilin District, Taipei City",
   },
 ]
 
@@ -48,8 +52,10 @@ export default function PlaceSearch({ value, onChange, onExistingPlace }: PlaceS
   const [isSearching, setIsSearching] = useState(false)
   const [showDialog, setShowDialog] = useState(false)
   const [matchedPlace, setMatchedPlace] = useState<any>(null)
+  const [inputBlurred, setInputBlurred] = useState(false);
 
   useEffect(() => {
+    if (!inputBlurred) return;
     const searchPlaces = async () => {
       if (!value || value.length < 2) return
 
@@ -72,7 +78,7 @@ export default function PlaceSearch({ value, onChange, onExistingPlace }: PlaceS
 
     const debounceTimer = setTimeout(searchPlaces, 500)
     return () => clearTimeout(debounceTimer)
-  }, [value])
+  }, [value, inputBlurred])
 
   const handleConfirm = () => {
     if (matchedPlace) {
@@ -91,7 +97,11 @@ export default function PlaceSearch({ value, onChange, onExistingPlace }: PlaceS
         <Input
           type="text"
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => {
+            onChange(e.target.value);
+            setInputBlurred(false);
+          }}
+          onBlur={() => setInputBlurred(true)}
           placeholder="Enter place name"
           className="pr-10"
         />
@@ -105,41 +115,40 @@ export default function PlaceSearch({ value, onChange, onExistingPlace }: PlaceS
       </div>
 
       {/* Dialog for confirming if it's the same place */}
-      <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Place Already Exists</DialogTitle>
-            <DialogDescription>
-              We found a similar place in our database. Is this the place you&apos;re trying to add?
-            </DialogDescription>
-          </DialogHeader>
-          {matchedPlace && (
-            <div className="flex items-center space-x-4 py-4">
-              <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md">
-                <img
-                  src={matchedPlace.image || "/placeholder.svg"}
-                  alt={matchedPlace.name}
-                  className="h-full w-full object-cover"
-                />
-              </div>
+      {matchedPlace && showDialog && (
+        <Dialog open={true} onOpenChange={() => setShowDialog(false)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Place Already Exists</DialogTitle>
+              <DialogDescription>
+                A similar place already exists in our database. Would you like to view it instead?
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex p-2 rounded-lg gap-3 hover:bg-gray-50">
+              <Image
+                src={matchedPlace.image || "/place-placeholder.jpg"}
+                alt={matchedPlace.name}
+                width={80}
+                height={80}
+                className="rounded-md object-cover h-20 w-20"
+              />
               <div>
-                <h4 className="font-medium">{matchedPlace.name}</h4>
-                <p className="text-sm text-gray-500">
-                  {matchedPlace.type} • {matchedPlace.location}
+                <h3 className="font-medium">{matchedPlace.name}</h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  {matchedPlace.placeType} • {matchedPlace.location}
                 </p>
+                <p className="text-xs text-gray-400 mt-1 truncate">{matchedPlace.address}</p>
               </div>
             </div>
-          )}
-          <DialogFooter className="flex flex-col sm:flex-row sm:justify-between sm:space-x-2">
-            <Button type="button" variant="outline" onClick={handleCancel}>
-              No, it&apos;s a different place
-            </Button>
-            <Button type="button" onClick={handleConfirm} className="bg-[#3F72AF]">
-              Yes, it&apos;s the same place
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowDialog(false)}>
+                Continue Adding
+              </Button>
+              <Button onClick={() => onExistingPlace(matchedPlace)}>View Place</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 }

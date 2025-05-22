@@ -35,7 +35,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
 import { useAuth } from '@/context/AuthContext'
-import { cn } from "@/lib/utils"
+import { cn, getUserDisplayName, getUserInitials } from "@/lib/utils"
 
 // Reduced place types to only 4 options
 const placeTypes = [
@@ -771,7 +771,7 @@ export default function ExplorePage() {
                             <div className="absolute bottom-3 right-3">
                               <Avatar className="border-2 border-white h-8 w-8">
                                 <AvatarFallback className="bg-[#3F72AF] text-white text-xs">
-                                  {place.contributorInitials}
+                                  {typeof place.contributor === 'object' ? getUserInitials(place.contributor) : place.contributorInitials}
                                 </AvatarFallback>
                               </Avatar>
                             </div>
@@ -875,7 +875,7 @@ export default function ExplorePage() {
                                 </div>
                                 <Avatar className="h-6 w-6">
                                   <AvatarFallback className="bg-[#3F72AF] text-white text-xs">
-                                    {place.contributorInitials}
+                                    {typeof place.contributor === 'object' ? getUserInitials(place.contributor) : place.contributorInitials}
                                   </AvatarFallback>
                                 </Avatar>
                               </div>

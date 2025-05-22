@@ -19,6 +19,7 @@ from datetime import timedelta
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 load_dotenv(BASE_DIR / 'citystory_backend' / '.env')
+load_dotenv()
 
 # Import storage settings
 from core.settings.storage import *
@@ -92,19 +93,20 @@ WSGI_APPLICATION = 'citystory_backend.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',  # This will create a db.sqlite3 file in your project's root
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ.get('DB_NAME', 'citystory_db'),
+        'USER': os.environ.get('DB_USER', 'citystory_user'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', 'password'),
+        'HOST': os.environ.get('DB_HOST', 'localhost'),
+        'PORT': os.environ.get('DB_PORT', '5432'),
     }
 }
 
+# Old SQLite config (commented out)
 # DATABASES = {
 #     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': os.getenv('DB_NAME'),
-#         'USER': os.getenv('DB_USER'),
-#         'PASSWORD': os.getenv('DB_PASSWORD'),
-#         'HOST': os.getenv('DB_HOST'),
-#         'PORT': os.getenv('DB_PORT'),
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
 #     }
 # }
 
@@ -216,6 +218,20 @@ SITE_URL = os.getenv('SITE_URL', 'http://localhost:3000')
 # Geocoding Configuration
 GEOCODING_API_KEY = os.getenv('GEOCODING_API_KEY')
 GEOCODING_RATE_LIMIT = float(os.getenv('GEOCODING_RATE_LIMIT', '0.2'))  # Seconds between API calls
+
+
+# Google OAuth 2.0 Configuration
+# Get these from your Google Cloud Console (APIs & Services -> Credentials)
+# Ensure your OAuth 2.0 Client ID is set up for "Web application"
+GOOGLE_OAUTH_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+GOOGLE_OAUTH_CLIENT_SECRET = "YOUR_GOOGLE_CLIENT_SECRET"
+# This URL MUST EXACTLY match one of the "Authorized redirect URIs" in your Google Cloud Console
+# It should point to the endpoint where your backend will receive the authorization code.
+GOOGLE_OAUTH_REDIRECT_URI = "http://localhost:8000/api/auth/google/callback/"
+# For production, use your actual domain: "https://your-domain.com/api/auth/google/callback/"
+
+
+
 
 LOGGING = {
     'version': 1,
