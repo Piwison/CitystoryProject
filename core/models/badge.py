@@ -2,13 +2,14 @@ from django.db import models
 from .mixins import TimestampMixin
 from django.db.models import Count, Sum
 from django.utils import timezone
+import uuid
 
 class Badge(TimestampMixin):
     """
     Model representing achievement badges that users can earn.
     Matches the Badge model in Prisma schema.
     """
-    id = models.CharField(max_length=128, primary_key=True, default='')  # Matching cuid field from Prisma
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)  # Updated from CharField
     name = models.CharField(max_length=100, unique=True)
     icon = models.CharField(max_length=255)
     description = models.TextField()

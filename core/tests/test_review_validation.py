@@ -27,7 +27,7 @@ class ReviewValidationTest(APITestCase):
             price_level='600',
             address='123 Test St',
             district='xinyi',
-            user=self.user
+            created_by=self.user
         )
         
         self.attraction = Place.objects.create(
@@ -37,7 +37,7 @@ class ReviewValidationTest(APITestCase):
             price_level='600',
             address='456 Test St',
             district='xinyi',
-            user=self.user
+            created_by=self.user
         )
         
         self.hotel = Place.objects.create(
@@ -47,7 +47,7 @@ class ReviewValidationTest(APITestCase):
             price_level='600',
             address='789 Test St',
             district='xinyi',
-            user=self.user
+            created_by=self.user
         )
         
         # Set up API client
@@ -131,6 +131,8 @@ class ReviewValidationTest(APITestCase):
         }
         
         response = self.client.patch(url, valid_update, format='json')
+        if response.status_code != status.HTTP_200_OK:
+            print("Validation Error for valid_update:", response.data) # DEBUG PRINT
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['foodQuality'], 5)
         self.assertEqual(response.data['comment'], 'Updated review')
@@ -141,11 +143,15 @@ class ReviewValidationTest(APITestCase):
         hotel_review = {
             'overallRating': 4,
             'cleanliness': 5,
+            'service': 5,
+            'value': 4,
             'comment': 'Very clean hotel with friendly staff.'
         }
         
         url = reverse('place-reviews-list', kwargs={'place_pk': self.hotel.id})
         response = self.client.post(url, hotel_review, format='json')
+        if response.status_code != status.HTTP_201_CREATED:
+            print("Validation Error Response Data:", response.data) # DEBUG PRINT
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         
         # Should fail without cleanliness rating for a hotel

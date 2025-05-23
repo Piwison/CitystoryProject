@@ -11,7 +11,14 @@ class IsOwnerOrReadOnly(permissions.BasePermission):
             return True
 
         # Write permissions are only allowed to the creator of the object.
-        return obj.created_by == request.user
+        # obj.user should exist on models like Review, PlacePhoto, etc.
+        # For models like Place, it might be obj.created_by
+        if hasattr(obj, 'user'):
+            return obj.user == request.user
+        elif hasattr(obj, 'created_by'): # Fallback for models like Place
+            return obj.created_by == request.user
+        # If neither user nor created_by, deny by default for safety unless it's a read-only request (handled above)
+        return False
 
 class IsModeratorOrReadOnly(permissions.BasePermission):
     """

@@ -49,6 +49,7 @@ class CombinedSearchTestCase(APITestCase):
             place_type='cafe',
             price_level=400,
             moderation_status='APPROVED',
+            draft=False,
             latitude=25.0330,
             longitude=121.5654,
             created_by=self.user
@@ -64,6 +65,7 @@ class CombinedSearchTestCase(APITestCase):
             place_type='restaurant',
             price_level=1200,
             moderation_status='APPROVED',
+            draft=False,
             latitude=25.0274,
             longitude=121.5300,
             created_by=self.user
@@ -79,6 +81,7 @@ class CombinedSearchTestCase(APITestCase):
             place_type='bar',
             price_level=800,
             moderation_status='APPROVED',
+            draft=False,
             latitude=25.0330,
             longitude=121.5654,
             created_by=self.user
@@ -94,6 +97,7 @@ class CombinedSearchTestCase(APITestCase):
             place_type='restaurant',
             price_level=600,
             moderation_status='APPROVED',
+            draft=False,
             latitude=25.0930,
             longitude=121.5254,
             created_by=self.user
@@ -110,6 +114,7 @@ class CombinedSearchTestCase(APITestCase):
             place_type='cafe',
             price_level=500,
             moderation_status='PENDING',
+            draft=False,
             latitude=25.0274,
             longitude=121.5300,
             created_by=self.user
@@ -214,6 +219,8 @@ class CombinedSearchTestCase(APITestCase):
             id=str(uuid.uuid4()),
             name="Cafe With WiFi",
             place_type="cafe",
+            moderation_status='APPROVED',
+            draft=False,
             created_by=self.user
         )
         place1.features.add(self.feature1)
@@ -222,6 +229,8 @@ class CombinedSearchTestCase(APITestCase):
             id=str(uuid.uuid4()),
             name="Restaurant With Parking",
             place_type="restaurant",
+            moderation_status='APPROVED',
+            draft=False,
             created_by=self.user
         )
         place2.features.add(self.feature2)
@@ -230,6 +239,8 @@ class CombinedSearchTestCase(APITestCase):
             id=str(uuid.uuid4()),
             name="Bar With Music",
             place_type="bar",
+            moderation_status='APPROVED',
+            draft=False,
             created_by=self.user
         )
         place3.features.add(self.feature3)
@@ -254,6 +265,7 @@ class CombinedSearchTestCase(APITestCase):
                 name=f"Test Place {i}",
                 place_type="restaurant",
                 moderation_status="APPROVED",
+                draft=False,
                 created_by=self.user
             )
         
@@ -276,6 +288,7 @@ class CombinedSearchTestCase(APITestCase):
                 name=f"Cursor Test Place {i}",
                 place_type="restaurant",
                 moderation_status="APPROVED",  # Make sure they're approved
+                draft=False,
                 created_by=self.user
             )
             

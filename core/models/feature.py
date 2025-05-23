@@ -41,12 +41,12 @@ class PlaceFeature(models.Model):
     Junction table for Place and Feature.
     Matches the PlaceFeature model in Prisma schema.
     """
-    id = models.CharField(max_length=128, primary_key=True, default=uuid.uuid4)  # Use uuid4 as default
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     place = models.ForeignKey('core.Place', on_delete=models.CASCADE, related_name='place_features')
     feature = models.ForeignKey(Feature, on_delete=models.CASCADE, related_name='place_features')
     
     class Meta:
-        unique_together = ['place', 'feature']
+        unique_together = ('place', 'feature')
         indexes = [
             models.Index(fields=['place']),
             models.Index(fields=['feature']),
@@ -80,4 +80,4 @@ class PlaceFeature(models.Model):
         """
         Return a formatted display name including the type.
         """
-        return f"{self.name} ({self.feature_type})" 
+        return f"{self.feature.name} ({self.feature.feature_type})" 

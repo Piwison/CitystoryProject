@@ -139,42 +139,42 @@ class Photo(models.Model):
             self.is_primary = True
         super().save(*args, **kwargs)
 
-class Notification(models.Model):
-    """
-    Model for storing user notifications.
-    """
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
-    notification_type = models.CharField(max_length=50)
-    title = models.CharField(max_length=255)
-    message = models.TextField()
-    is_read = models.BooleanField(default=False)
-    related_object_type = models.CharField(max_length=50)
-    related_object_id = models.PositiveIntegerField()
-    created_at = models.DateTimeField(auto_now_add=True)
+# class Notification(models.Model):
+#     """
+#     Model for storing user notifications.
+#     """
+#     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
+#     notification_type = models.CharField(max_length=50)
+#     title = models.CharField(max_length=255)
+#     message = models.TextField()
+#     is_read = models.BooleanField(default=False)
+#     related_object_type = models.CharField(max_length=50)
+#     related_object_id = models.PositiveIntegerField()
+#     created_at = models.DateTimeField(auto_now_add=True)
     
-    def __str__(self):
-        return f'{self.notification_type} for {self.user.email}'
+#     def __str__(self):
+#         return f'{self.notification_type} for {self.user.email}'
     
-    @classmethod
-    def create_content_notification(cls, content_obj, notification_type):
-        """Create a notification for content-related events."""
-        if hasattr(content_obj, 'user'):
-            user = content_obj.user
-        elif hasattr(content_obj, 'uploader'):
-            user = content_obj.uploader
-        elif hasattr(content_obj, 'owner'):
-            user = content_obj.owner
-        else:
-            return None
+#     @classmethod
+#     def create_content_notification(cls, content_obj, notification_type):
+#         """Create a notification for content-related events."""
+#         if hasattr(content_obj, 'user'):
+#             user = content_obj.user
+#         elif hasattr(content_obj, 'uploader'):
+#             user = content_obj.uploader
+#         elif hasattr(content_obj, 'owner'):
+#             user = content_obj.owner
+#         else:
+#             return None
         
-        title = f'Content {notification_type.replace("_", " ").title()}'
-        message = f'Your {content_obj._meta.verbose_name} has been {notification_type.split("_")[-1]}'
+#         title = f'Content {notification_type.replace("_", " ").title()}'
+#         message = f'Your {content_obj._meta.verbose_name} has been {notification_type.split("_")[-1]}'
         
-        return cls.objects.create(
-            user=user,
-            notification_type=notification_type,
-            title=title,
-            message=message,
-            related_object_type=content_obj._meta.model_name,
-            related_object_id=content_obj.id
-        ) 
+#         return cls.objects.create(
+#             user=user,
+#             notification_type=notification_type,
+#             title=title,
+#             message=message,
+#             related_object_type=content_obj._meta.model_name,
+#             related_object_id=content_obj.id
+#         ) 

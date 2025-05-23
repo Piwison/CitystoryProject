@@ -12,49 +12,7 @@ from ..filters import ReviewFilter
 from ..permissions import IsOwnerOrReadOnly, IsModeratorOrReadOnly
 from ..models.helpful_vote import HelpfulVote
 
-class PlaceTypeReviewValidator:
-    """
-    Middleware for validating reviews based on place type.
-    Different place types require different rating fields.
-    """
-    def validate_review_data(self, place, data):
-        """
-        Validate review data based on place type.
-        
-        API fields use camelCase naming convention while model fields use snake_case:
-        - overallRating → overall_rating
-        - foodQuality → food_quality
-        - service → service (same in both)
-        - cleanliness → cleanliness (same in both)
-        
-        All places require overallRating, while specific place types (restaurants, cafes, etc.)
-        require additional ratings such as foodQuality and service.
-        """
-        errors = {}
-        
-        # All places require overallRating
-        if 'overallRating' not in data or data['overallRating'] is None:
-            errors['overallRating'] = ['Overall rating is required for all places.']
-            
-        # Food establishments require food and service ratings
-        if place.place_type in ['restaurant', 'cafe', 'bar']:
-            if 'foodQuality' not in data or data['foodQuality'] is None:
-                errors['foodQuality'] = ['Food quality rating is required for restaurants, cafes, and bars.']
-                
-            if 'service' not in data or data['service'] is None:
-                errors['service'] = ['Service rating is required for restaurants, cafes, and bars.']
-        
-        # Hotels require cleanliness and service ratings
-        if place.place_type == 'hotel':
-            if 'cleanliness' not in data or data['cleanliness'] is None:
-                errors['cleanliness'] = ['Cleanliness rating is required for hotels.']
-                
-            if 'service' not in data or data['service'] is None:
-                errors['service'] = ['Service rating is required for hotels.']
-        
-        return errors
-
-class ReviewViewSet(viewsets.ModelViewSet, PlaceTypeReviewValidator):
+class ReviewViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing reviews.
     
@@ -131,28 +89,15 @@ class ReviewViewSet(viewsets.ModelViewSet, PlaceTypeReviewValidator):
     def create(self, request, *args, **kwargs):
         """
         Create a review with validation based on place type.
+        (Validation now handled by ReviewSerializer)
         """
-        place = get_object_or_404(Place, pk=self.kwargs['place_pk'])
-        
-        # Validate according to place type
-        errors = self.validate_review_data(place, request.data)
-        if errors:
-            return Response(errors, status=status.HTTP_400_BAD_REQUEST)
-        
         return super().create(request, *args, **kwargs)
     
     def update(self, request, *args, **kwargs):
         """
         Update a review with validation based on place type.
+        (Validation now handled by ReviewSerializer)
         """
-        instance = self.get_object()
-        place = instance.place
-        
-        # Validate according to place type
-        errors = self.validate_review_data(place, request.data)
-        if errors:
-            return Response(errors, status=status.HTTP_400_BAD_REQUEST)
-            
         return super().update(request, *args, **kwargs)
     
     def perform_create(self, serializer):

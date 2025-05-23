@@ -3,13 +3,14 @@ from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
 from model_utils import FieldTracker
 from .mixins import TimestampMixin, ModerationMixin
+import uuid
 
 class Review(TimestampMixin, ModerationMixin):
     """
     Review model for places. 
     Matches the Review model in Prisma schema.
     """
-    id = models.CharField(max_length=128, primary_key=True, default='')  # Matching cuid field from Prisma
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)  # Updated from CharField
     
     # Relationships
     place = models.ForeignKey('core.Place', on_delete=models.CASCADE, related_name='reviews')

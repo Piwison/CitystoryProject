@@ -22,8 +22,8 @@ from ..utils.geocoding import geocode_address, determine_district
 from django.core.cache import cache
 from django.http import Http404
 from django_filters.rest_framework.filters import BaseInFilter, CharFilter
-from django.db.models import Q
 from django.core.exceptions import EmptyResultSet
+from .filters import SafeCommaSeparatedListFilter # Assuming this is in the same directory or adjust path
 
 # Set up logging with more detail for geolocation queries
 logger = logging.getLogger(__name__)
@@ -65,240 +65,112 @@ class PlacePagination(PageNumberPagination):
         print(f"[PAGINATOR DEBUG] get_paginated_response called. Data count: {len(data)}")
         return super().get_paginated_response(data)
 
-class SafeCommaSeparatedListFilter(BaseInFilter, CharFilter):
-    def filter(self, qs, value):
-        if not value:
-            return qs
-        if isinstance(value, str):
-            value = [v.strip() for v in value.split(',')]
-        valid_choices = set(dict(DISTRICT_CHOICES).keys())
-        valid_values = [v for v in value if v in valid_choices]
-        if not valid_values:
-            return qs.none()
-        return super().filter(qs, valid_values)
-
 class PlaceFilter(filters.FilterSet):
-    """
-    Advanced filtering for places.
+    # Price level filters (Keep commented for now)
+    # min_price = filters.NumberFilter(
+    #     method='filter_by_price_level',
+    #     help_text='Minimum price level value (1-4). API parameter: minPrice'
+    # )
+    # max_price = filters.NumberFilter(
+    #     method='filter_by_price_level',
+    #     help_text='Maximum price level value (1-4). API parameter: maxPrice'
+    # )
     
-    Supports:
-    - Price level filtering (min/max)
-    - Place type filtering with multiple selection
-    - Feature filtering (name, type, has_all, has_any)
-    - Geolocation-based filtering with optimized distance calculation
-    - Rating-based filtering
-    - Date range filtering
-    - District-based filtering with multiple selection
-    """
-    # Price level filters
-    min_price = filters.NumberFilter(
-        method='filter_by_price_level',
-        help_text='Minimum price level value (1-4). API parameter: minPrice'
-    )
-    max_price = filters.NumberFilter(
-        method='filter_by_price_level',
-        help_text='Maximum price level value (1-4). API parameter: maxPrice'
-    )
+    # Place type filters - use actual field name (Keep commented for now)
+    # types = filters.MultipleChoiceFilter(
+    #     field_name='place_type',
+    #     choices=PLACE_TYPE_CHOICES,
+    #     help_text='Filter by multiple place types (comma-separated)'
+    # )
     
-    # Place type filters - use actual field name
-    types = filters.MultipleChoiceFilter(
-        field_name='place_type',  # This matches the model field
-        choices=PLACE_TYPE_CHOICES,
-        help_text='Filter by multiple place types (comma-separated)'
-    )
-    
-    # District filters
+    # District filters - THIS IS THE ONE TO KEEP ACTIVE
     district = SafeCommaSeparatedListFilter(
         field_name='district',
         help_text='Filter by one or more districts (comma-separated, e.g. ?district=xinyi,daan)'
     )
     
-    # Feature filters
-    feature_name = filters.CharFilter(
-        field_name='features__name',
-        lookup_expr='icontains',
-        help_text='Filter by feature name (case-insensitive)'
-    )
-    feature_type = filters.ChoiceFilter(
-        field_name='features__type',
-        choices=FEATURE_TYPES,
-        help_text='Filter by feature type'
-    )
-    has_features = filters.ModelMultipleChoiceFilter(
-        queryset=Feature.objects.all(),
-        method='filter_has_features',
-        help_text='Filter places that have ALL specified features'
-    )
-    any_features = filters.ModelMultipleChoiceFilter(
-        queryset=Feature.objects.all(),
-        method='filter_any_features',
-        help_text='Filter places that have ANY of the specified features'
-    )
+    # Feature filters (Keep commented for now)
+    # feature_name = filters.CharFilter(
+    #     field_name='features__name',
+    #     lookup_expr='icontains',
+    #     help_text='Filter by feature name (case-insensitive)'
+    # )
+    # feature_type = filters.ChoiceFilter(
+    #     field_name='features__type',
+    #     choices=FEATURE_TYPES, # Ensure FEATURE_TYPES is defined or imported
+    #     help_text='Filter by feature type'
+    # )
+    # has_features = filters.ModelMultipleChoiceFilter(
+    #     queryset=Feature.objects.all(),
+    #     method='filter_has_features',
+    #     help_text='Filter places that have ALL specified features'
+    # )
+    # any_features = filters.ModelMultipleChoiceFilter(
+    #     queryset=Feature.objects.all(),
+    #     method='filter_any_features',
+    #     help_text='Filter places that have ANY of the specified features'
+    # )
     
-    # Rating filters
-    min_rating = filters.NumberFilter(
-        method='filter_by_rating',
-        help_text='Minimum average rating (1-5)'
-    )
-    max_rating = filters.NumberFilter(
-        method='filter_by_rating',
-        help_text='Maximum average rating (1-5)'
-    )
+    # Rating filters (Keep commented for now)
+    # min_rating = filters.NumberFilter(
+    #     method='filter_by_rating',
+    #     help_text='Minimum average rating (1-5)'
+    # )
+    # max_rating = filters.NumberFilter(
+    #     method='filter_by_rating',
+    #     help_text='Maximum average rating (1-5)'
+    # )
     
-    # Geolocation filters
-    latitude = filters.NumberFilter(
-        method='filter_by_distance',
-        help_text='Latitude for distance calculation'
-    )
-    longitude = filters.NumberFilter(
-        method='filter_by_distance',
-        help_text='Longitude for distance calculation'
-    )
-    radius = filters.NumberFilter(
-        method='filter_by_distance',
-        help_text='Search radius in kilometers'
-    )
+    # Geolocation filters (Keep commented for now)
+    # latitude = filters.NumberFilter(
+    #     method='filter_by_distance',
+    #     help_text='Latitude for distance calculation'
+    # )
+    # longitude = filters.NumberFilter(
+    #     method='filter_by_distance',
+    #     help_text='Longitude for distance calculation'
+    # )
+    # radius = filters.NumberFilter(
+    #     method='filter_by_distance',
+    #     help_text='Search radius in kilometers'
+    # )
     
-    # Date filters
-    created_after = filters.DateTimeFilter(
-        field_name='created_at',
-        lookup_expr='gte',
-        help_text='Filter places created after this date'
-    )
-    created_before = filters.DateTimeFilter(
-        field_name='created_at',
-        lookup_expr='lte',
-        help_text='Filter places created before this date'
-    )
-
-    def filter_by_price_level(self, queryset, name, value):
-        """
-        Filter places by price_level using integer values.
-        
-        Maps the API parameters 'minPrice' and 'maxPrice' to database queries on the 'price_level' field.
-        - minPrice → price_level__gte
-        - maxPrice → price_level__lte
-        """
-        try:
-            value_int = int(value)
-        except (ValueError, TypeError):
-            return queryset
-
-        if name == 'min_price':
-            return queryset.filter(price_level__gte=value_int)
-        elif name == 'max_price':
-            return queryset.filter(price_level__lte=value_int)
-        return queryset
-
-    def filter_by_rating(self, queryset, name, value):
-        """
-        Filter places by their average rating.
-        Adds index hints for optimization when filtering by rating.
-        """
-        if name == 'min_rating':
-            return queryset.annotate(
-                avg_rating=Avg('reviews__overall_rating')
-            ).filter(avg_rating__gte=value).distinct()
-        elif name == 'max_rating':
-            return queryset.annotate(
-                avg_rating=Avg('reviews__overall_rating')
-            ).filter(avg_rating__lte=value).distinct()
-        return queryset
-
-    def filter_by_distance(self, queryset, name, value):
-        """
-        Filter places within a specified radius of given coordinates.
-        Uses the Haversine formula with optimized SQL and spatial indexing.
-        
-        The Haversine formula is more accurate than Euclidean distance
-        as it accounts for Earth's curvature.
-        """
-        params = self.data
-        lat = float(params.get('latitude', 0))
-        lon = float(params.get('longitude', 0))
-        radius = float(params.get('radius', 5))  # Default 5km radius
-        
-        if not all([lat, lon, radius]):
-            return queryset
-            
-        # Cache key based on coordinates and radius
-        cache_key = f"places_near_{lat}_{lon}_{radius}"
-        cached_results = cache.get(cache_key)
-        
-        if cached_results is not None:
-            logger.debug(f"Cache hit for geolocation query: {cache_key}")
-            return cached_results
-            
-        # Start timing the query
-        start_time = time.time()
-        
-        # Convert latitude and longitude to radians
-        lat_rad = Radians(Value(lat))
-        lon_rad = Radians(Value(lon))
-        lat_field_rad = Radians(F('latitude'))
-        lon_field_rad = Radians(F('longitude'))
-        
-        # Calculate distance using the Haversine formula
-        distance = ExpressionWrapper(
-            EARTH_RADIUS_KM * ACos(
-                Cos(lat_rad) * Cos(lat_field_rad) *
-                Cos(lon_field_rad - lon_rad) +
-                Sin(lat_rad) * Sin(lat_field_rad)
-            ),
-            output_field=FloatField()
-        )
-        
-        # Add spatial index hint and null checks
-        queryset = queryset.filter(
-            Q(latitude__isnull=False) & 
-            Q(longitude__isnull=False)
-        ).extra(
-            hints={'place_location_idx': 'USE INDEX'}
-        )
-        
-        # Annotate with distance and filter
-        queryset = queryset.annotate(
-            distance=distance
-        ).filter(distance__lte=radius)
-        
-        # Log query performance
-        query_time = time.time() - start_time
-        if query_time > 1.0:  # Log slow queries (>1 second)
-            logger.warning(
-                f"Slow geolocation query detected: {query_time:.2f}s\n"
-                f"Parameters: lat={lat}, lon={lon}, radius={radius}km\n"
-                f"Query plan: {connection.queries[-1]}"
-            )
-        else:
-            logger.debug(f"Geolocation query completed in {query_time:.2f}s")
-        
-        # Cache results for 5 minutes if query is fast
-        if query_time < 1.0:
-            cache.set(cache_key, queryset, timeout=300)
-        
-        return queryset
-
-    def filter_has_features(self, queryset, name, value):
-        """
-        Filter places that have ALL of the specified features.
-        Uses EXISTS subqueries for better performance with multiple features.
-        """
-        for feature in value:
-            queryset = queryset.filter(features=feature)
-        return queryset.distinct()
-
-    def filter_any_features(self, queryset, name, value):
-        """
-        Filter places that have ANY of the specified features.
-        Uses IN clause for optimal performance.
-        """
-        return queryset.filter(features__in=value).distinct()
+    # Date filters (Keep commented for now)
+    # created_after = filters.DateTimeFilter(
+    #     field_name='created_at',
+    #     lookup_expr='gte',
+    #     help_text='Filter places created after this date'
+    # )
+    # created_before = filters.DateTimeFilter(
+    #     field_name='created_at',
+    #     lookup_expr='lte',
+    #     help_text='Filter places created before this date'
+    # )
 
     class Meta:
         model = Place
-        # Don't include any field overrides in Meta.fields
-        # Only include actual model fields or automatically created filter fields
-        fields = []
+        fields = [] # Only 'district' is active and explicitly defined
+
+    # Custom filter methods (Keep commented for now)
+    # def filter_by_price_level(self, queryset, name, value):
+    #     # ... existing implementation ...
+    #     return queryset # Placeholder
+
+    # def filter_by_rating(self, queryset, name, value):
+    #     # ... existing implementation ...
+    #     return queryset # Placeholder
+
+    # def filter_by_distance(self, queryset, name, value):
+    #     # ... existing implementation ...
+    #     return queryset # Placeholder
+
+    # def filter_has_features(self, queryset, name, value):
+    #     # ... existing implementation ...
+    #     return queryset.distinct() # Placeholder
+
+    # def filter_any_features(self, queryset, name, value):
+    #     # ... existing implementation ...
+    #     return queryset.distinct() # Placeholder
 
 class PlaceViewSet(viewsets.ModelViewSet):
     """
@@ -428,7 +300,6 @@ class PlaceViewSet(viewsets.ModelViewSet):
             print(f"[DEBUG PV.get_queryset] Before filter, count: {queryset_to_return.count()}")
             
             # Use Q objects to build the filter
-            from django.db.models import Q
             queryset_to_return = queryset_to_return.filter(
                 Q(draft=False) & Q(moderation_status__exact='APPROVED')
             )
@@ -486,9 +357,15 @@ class PlaceViewSet(viewsets.ModelViewSet):
                 print(f"[DEBUG PV.get_queryset] Total user places in DB: {user_places}")
                 print(f"[DEBUG PV.get_queryset] Total approved places in DB: {approved_places}")
 
-        # Apply ordering for list views (if not 'publish' action)
-        if action != 'publish':
-            queryset_to_return = self.filter_queryset(queryset_to_return)
+        # The self.filter_queryset call will be made by the mixins (e.g., ListModelMixin)
+        # We should NOT call it here if get_queryset is to be reusable by actions like 'publish'
+        # that might not want default filtering.
+        # However, for list/detail views, DRF applies it. If action == 'publish', it's not called by DRF's default publish action.
+
+        # Decision: For typical list/retrieve actions, DRF applies filtering. 
+        # For our custom 'publish' action, we might apply filters differently or not at all.
+        # The current problem is that when DRF applies PlaceFilter, it breaks.
+        # So, removing the conditional logic here means PlaceFilter is *always* problematic when applied by DRF.
         
         try:
             print(f"[DEBUG PV.get_queryset] For action '{action}', final SQL before return: {queryset_to_return.query}")
@@ -501,7 +378,7 @@ class PlaceViewSet(viewsets.ModelViewSet):
             return base_queryset.none()
         except Exception as e:
             print(f"[DEBUG PV.get_queryset] Error getting final count: {str(e)}")
-            # Return an empty queryset when we get an EmptyResultSet
+            # Return an empty queryset when we get an EmptyResultSet or other exception during count
             return base_queryset.none()
                 
         return queryset_to_return

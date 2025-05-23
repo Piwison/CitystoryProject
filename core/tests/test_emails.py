@@ -67,7 +67,6 @@ class EmailTest(TestCase):
         
         # Create a test review with mocked signal handlers
         self.review = Review.objects.create(
-            id=1,  # Use a numeric ID for simplicity
             place=self.place,
             user=self.user,
             overall_rating=4,
@@ -85,7 +84,7 @@ class EmailTest(TestCase):
             title='Your Review Has Been Approved!',
             message=f'Your review for "{self.place.name}" has been approved.',
             content_type=ContentType.objects.get_for_model(self.review),
-            object_id=self.review.id
+            object_id=str(self.review.id)
         )
         
         # Send notification email
@@ -112,7 +111,7 @@ class EmailTest(TestCase):
             title='Your Review Was Not Approved',
             message=f'Your review for "{self.place.name}" could not be approved.',
             content_type=ContentType.objects.get_for_model(self.review),
-            object_id=self.review.id
+            object_id=str(self.review.id)
         )
         
         # Send notification email

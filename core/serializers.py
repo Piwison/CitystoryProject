@@ -7,6 +7,7 @@ from django.core.exceptions import ValidationError
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.core.validators import URLValidator
 from .choices import PLACE_TYPE_CHOICES
+from django.contrib.contenttypes.models import ContentType
 import logging
 
 User = get_user_model()
@@ -167,7 +168,7 @@ class PlaceSerializer(serializers.ModelSerializer):
     """Serializer for places."""
     contributor = UserSerializer(source='created_by', read_only=True)
     features = FeatureSerializer(many=True, read_only=True)
-    feature_ids = serializers.PrimaryKeyRelatedField(
+    featureIds = serializers.PrimaryKeyRelatedField(
         many=True,
         queryset=Feature.objects.all(),
         write_only=True,
@@ -184,6 +185,11 @@ class PlaceSerializer(serializers.ModelSerializer):
     googleMapsLink = serializers.URLField(source='google_maps_link', required=False, allow_null=True)
     priceLevel = serializers.IntegerField(source='price_level', required=False, allow_null=True)
     placeType = serializers.CharField(source='place_type')
+    createdBy = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.all(),
+        source='created_by',
+        write_only=True
+    )
     
     class Meta:
         model = Place
@@ -191,9 +197,10 @@ class PlaceSerializer(serializers.ModelSerializer):
             'id', 'name', 'description', 'placeType', 'placeTypeDisplay', 'priceLevel',
             'address', 'district', 'slug', 'website', 'phone',
             'latitude', 'longitude', 'contributor', 'features',
-            'feature_ids', 'averageRating', 'totalReviews',
+            'featureIds', 'averageRating', 'totalReviews',
             'created_at', 'updated_at', 'moderation_status',
-            'isContributor', 'statusDisplay', 'googleMapsLink'
+            'isContributor', 'statusDisplay', 'googleMapsLink',
+            'createdBy'
         ]
         read_only_fields = [
             'contributor', 'averageRating', 'totalReviews',
@@ -226,7 +233,7 @@ class PlaceSerializer(serializers.ModelSerializer):
         }
         return status_map.get(obj.moderation_status, obj.moderation_status)
 
-    def validate_feature_ids(self, value):
+    def validate_featureIds(self, value):
         """
         Validate that all features are applicable to the place type.
         """
@@ -240,33 +247,34 @@ class PlaceSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
-        feature_ids = validated_data.pop('feature_ids', [])
+        featureIds = validated_data.pop('features', [])
         place = Place.objects.create(**validated_data)
-        place.features.set(feature_ids)
+        place.features.set(featureIds)
         return place
 
     def update(self, instance, validated_data):
-        feature_ids = validated_data.pop('feature_ids', None)
+        featureIds = validated_data.pop('features', None)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
-        if feature_ids is not None:
-            instance.features.set(feature_ids)
+        if featureIds is not None:
+            instance.features.set(featureIds)
         return instance 
 
 class ReviewSerializer(serializers.ModelSerializer):
     """Serializer for reviews."""
     user = UserSerializer(read_only=True)
-    place = PlaceSerializer(read_only=True)
+    # place = PlaceSerializer(read_only=True) # Keep commented to avoid circularity if ReviewSerializer is used in PlaceSerializer
     isOwner = serializers.SerializerMethodField()
     statusDisplay = serializers.SerializerMethodField()
     
     # Expose camelCase to API but map to snake_case model fields
+    # Make all rating fields not strictly required at field level; validation logic will handle it.
     foodQuality = serializers.FloatField(source='food_quality', required=False, allow_null=True)
     service = serializers.FloatField(required=False, allow_null=True)
     value = serializers.FloatField(required=False, allow_null=True)
     cleanliness = serializers.FloatField(required=False, allow_null=True)
-    overallRating = serializers.FloatField(source='overall_rating')
+    overallRating = serializers.FloatField(source='overall_rating', required=False, allow_null=True) # Changed here
     helpfulCount = serializers.IntegerField(source='helpful_count', read_only=True)
     
     class Meta:
@@ -298,57 +306,57 @@ class ReviewSerializer(serializers.ModelSerializer):
         }
         return status_map.get(obj.moderation_status, obj.moderation_status)
 
-    def validate(self, data):
-        """
-        Validate the review data:
-        - Ensure ratings are between 1 and 5
-        - Check for existing review by the same user for the place
-        - Validate required ratings based on place type
-        """
-        # Get the place from the view's kwargs
-        place = None
-        if self.context['view'] and hasattr(self.context['view'], 'kwargs'):
-            place_id = self.context['view'].kwargs.get('place_pk')
-            if place_id:
-                place = Place.objects.filter(id=place_id).first()
-        
-        if not place:
-            raise serializers.ValidationError("Place not found")
+    def validate(self, data): # `data` here is after to_internal_value has run for each field.
+        place_pk = self.context['view'].kwargs.get('place_pk')
+        try:
+            place = Place.objects.get(pk=place_pk)
+        except Place.DoesNotExist:
+            raise serializers.ValidationError("Associated place not found.")
+        place_type = place.place_type
+
+        validation_errors = {} # Accumulate errors
+
+        all_potential_rating_fields = {
+            'overallRating': 'Overall rating',
+            'foodQuality': 'Food quality',
+            'service': 'Service',
+            'value': 'Value',
+            'cleanliness': 'Cleanliness'
+        }
+        place_type_requirements = {
+            'restaurant': ['overallRating', 'foodQuality', 'service', 'value'],
+            'hotel': ['overallRating', 'cleanliness', 'service', 'value'],
+            'cafe': ['overallRating', 'foodQuality', 'service'],
+            'bar': ['overallRating', 'service', 'value'],
+            'attraction': ['overallRating']
+        }
+        required_field_keys_for_this_type = place_type_requirements.get(place_type, ['overallRating'])
+
+        for field_api_name in all_potential_rating_fields.keys():
+            display_name = all_potential_rating_fields[field_api_name]
+            is_field_required_for_this_type = field_api_name in required_field_keys_for_this_type
+            was_field_provided_in_input = field_api_name in self.initial_data
+            provided_value_initial = self.initial_data.get(field_api_name)
+            processed_value_in_data = data.get(field_api_name)
+
+            current_field_errors = []
+
+            if not self.partial:  # POST request
+                if is_field_required_for_this_type and provided_value_initial is None:
+                    current_field_errors.append(f"{display_name} is required for {place_type} reviews.")
+            else:  # PATCH request
+                if was_field_provided_in_input and is_field_required_for_this_type and provided_value_initial is None:
+                    current_field_errors.append(f"{display_name} cannot be set to null for {place_type} reviews if it's a required field.")
             
-        # Check for existing review by the same user
-        user = self.context['request'].user
-        if self.instance is None:  # Only check on create
-            existing_review = Review.objects.filter(
-                user=user,
-                place=place
-            ).exists()
-            if existing_review:
-                raise serializers.ValidationError(
-                    "You have already reviewed this place"
-                )
-        
-        # Rating fields are now correctly using snake_case for model references
-        rating_fields = ['food_quality', 'service', 'value', 'cleanliness']
-        
-        # Validate rating values
-        for field in rating_fields:
-            # Check field in initial_data, handling camelCase conversion for foodQuality
-            api_field = 'foodQuality' if field == 'food_quality' else field
-            if api_field in self.initial_data:
-                rating = self.initial_data[api_field]
-                if rating is not None and not (1 <= float(rating) <= 5):
-                    raise serializers.ValidationError({
-                        api_field: f"{field} must be between 1 and 5"
-                    })
-        
-        # Validate required ratings based on place type
-        if place.place_type in ['restaurant', 'cafe', 'bar']:
-            required_fields = [('food_quality', 'foodQuality'), ('service', 'service'), ('value', 'value')]
-            for model_field, api_field in required_fields:
-                if api_field not in self.initial_data or self.initial_data[api_field] is None:
-                    raise serializers.ValidationError({
-                        api_field: f"{model_field} is required for {place.place_type} reviews"
-                    })
+            if was_field_provided_in_input and processed_value_in_data is not None:
+                if not (1 <= processed_value_in_data <= 5):
+                    current_field_errors.append(f"{display_name} must be between 1 and 5.")
+            
+            if current_field_errors:
+                validation_errors[field_api_name] = current_field_errors
+
+        if validation_errors:
+            raise serializers.ValidationError(validation_errors)
         
         return data
 
@@ -462,20 +470,27 @@ class NotificationSerializer(serializers.ModelSerializer):
     """Serializer for notifications."""
     notificationType = serializers.CharField(source='notification_type')
     isRead = serializers.BooleanField(source='is_read')
-    relatedObjectType = serializers.CharField(source='related_object_type')
-    relatedObjectId = serializers.IntegerField(source='related_object_id')
+
+    # Fields for GenericForeignKey
+    contentType = serializers.PrimaryKeyRelatedField(
+        queryset=ContentType.objects.all(),
+        source='content_type' 
+    )
+    objectId = serializers.CharField(source='object_id') 
     
     class Meta:
         model = Notification
         fields = [
             'id', 'user', 'notificationType', 'title',
-            'message', 'isRead', 'relatedObjectType',
-            'relatedObjectId', 'created_at'
+            'message', 'isRead', 
+            'contentType', 
+            'objectId',  
+            'created_at'
         ]
         read_only_fields = [
             'user', 'notificationType', 'title',
-            'message', 'relatedObjectType',
-            'relatedObjectId', 'created_at'
+            'message', 
+            'created_at'
         ]
 
 class ModerationStatusSerializer(serializers.Serializer):
@@ -493,7 +508,7 @@ class ModerationStatusSerializer(serializers.Serializer):
 
 class SavedPlaceSerializer(serializers.ModelSerializer):
     """Serializer for saved/bookmarked places."""
-    placeDetails = serializers.SerializerMethodField(source='get_place_details')
+    placeDetails = serializers.SerializerMethodField()
     userEmail = serializers.EmailField(source='user.email', read_only=True)
     
     class Meta:
@@ -507,7 +522,7 @@ class SavedPlaceSerializer(serializers.ModelSerializer):
             'place': {'required': False}  # Make place optional for update operations
         }
     
-    def get_place_details(self, obj):
+    def get_placeDetails(self, obj):
         """Get the place details."""
         return PlaceSerializer(obj.place).data
         

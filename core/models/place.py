@@ -9,13 +9,18 @@ from model_utils import Choices
 from model_utils.tracker import FieldTracker
 from .mixins import TimestampMixin, ModerationMixin
 from ..choices import PLACE_TYPE_CHOICES, PRICE_LEVEL_CHOICES, DISTRICT_CHOICES
+import uuid
 
 class Place(TimestampMixin, ModerationMixin):
     """
     A place that can be reviewed and rated.
     Matches the Place model in Prisma schema.
     """
-    id = models.CharField(max_length=128, primary_key=True, default='')  # Matching cuid field from Prisma
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False
+    )
     name = models.CharField(max_length=255)
     slug = models.SlugField(max_length=255, blank=True, unique=True, null=True)
     address = models.CharField(max_length=255)

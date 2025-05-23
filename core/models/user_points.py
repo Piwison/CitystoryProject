@@ -2,6 +2,7 @@ from django.db import models
 from django.conf import settings
 from django.db.models import Sum
 from .mixins import TimestampMixin
+import uuid
 
 class UserPoints(TimestampMixin):
     """
@@ -79,14 +80,19 @@ class UserPoints(TimestampMixin):
             source_desc = dict(cls.POINT_SOURCES).get(source_type, source_type)
             description = f"Points for {source_desc}"
         
-        # Handle UUID source_id by including it in the description
+        print(f"[DEBUG UserPoints.add_points] Received source_id: {source_id}, type: {type(source_id)}") # DEBUG PRINT
+
         numeric_source_id = None
         if source_id:
-            try:
-                numeric_source_id = int(source_id)
-            except (ValueError, TypeError):
-                # If source_id is not an integer (e.g., UUID), include it in the description
+            if isinstance(source_id, uuid.UUID): # Explicit check for UUID
                 description = f"{description} (ID: {source_id})"
+                # numeric_source_id remains None, which is correct for PositiveIntegerField when source is UUID
+            else:
+                try:
+                    numeric_source_id = int(source_id)
+                except (ValueError, TypeError):
+                    # If source_id is not an integer (e.g., other string), include it in the description
+                    description = f"{description} (ID: {source_id})"
         
         # Create the points record
         points_record = cls.objects.create(

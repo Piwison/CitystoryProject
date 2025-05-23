@@ -2,13 +2,14 @@ from django.db import models
 from django.conf import settings
 from model_utils import FieldTracker
 from .mixins import TimestampMixin, ModerationMixin
+import uuid
 
 class PlacePhoto(TimestampMixin, ModerationMixin):
     """
     Photo model for places.
     Matches the PlacePhoto model in Prisma schema.
     """
-    id = models.CharField(max_length=128, primary_key=True, default='')  # Matching cuid field from Prisma
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)  # Updated from CharField
     place = models.ForeignKey('core.Place', on_delete=models.CASCADE, related_name='photos')
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='photos')
     url = models.CharField(max_length=255, help_text="URL to the photo")

@@ -96,27 +96,125 @@ class HelpfulVotesSystemTest(APITestCase):
         # Set up API client
         self.client = APIClient()
     
-    @pytest.mark.skip(reason="Test needs to be updated to work with place.created_by instead of place.user")
     def test_toggle_helpful_vote(self):
         """Test toggling a helpful vote on and off."""
+        self.client.force_authenticate(user=self.voter)
         
-    @pytest.mark.skip(reason="Test needs to be updated to work with place.created_by instead of place.user")
+        helpful_url = reverse('place-reviews-helpful', kwargs={
+            'place_pk': self.place.pk, # Use .pk for consistency with other tests
+            'pk': self.review.pk
+        })
+        
+        # First vote (toggle on)
+        response_on = self.client.post(helpful_url)
+        self.assertEqual(response_on.status_code, status.HTTP_200_OK)
+        self.assertTrue(HelpfulVote.objects.filter(review=self.review, user=self.voter).exists())
+        self.review.refresh_from_db() # Refresh review instance
+        self.assertEqual(self.review.helpful_count, 1)
+
+        # Second vote (toggle off)
+        response_off = self.client.post(helpful_url)
+        self.assertEqual(response_off.status_code, status.HTTP_200_OK)
+        self.assertFalse(HelpfulVote.objects.filter(review=self.review, user=self.voter).exists())
+        self.review.refresh_from_db() # Refresh review instance
+        self.assertEqual(self.review.helpful_count, 0)
+
     def test_unauthenticated_user_cannot_vote(self):
         """Test that unauthenticated users cannot vote."""
-    
-    @pytest.mark.skip(reason="Test needs to be updated to work with place.created_by instead of place.user")
+        # Ensure client is not authenticated (default state after APIClient())
+        # self.client.logout() # Or ensure no force_authenticate is active if it was set globally
+
+        helpful_url = reverse('place-reviews-helpful', kwargs={
+            'place_pk': self.place.pk,
+            'pk': self.review.pk
+        })
+        
+        response = self.client.post(helpful_url)
+        # Expect 401 Unauthorized or 403 Forbidden if IsAuthenticated permission is used
+        self.assertIn(response.status_code, [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN])
+        self.assertEqual(HelpfulVote.objects.count(), 0)
+
     def test_multiple_voters(self):
         """Test that multiple users can mark a review as helpful."""
-        
-    @pytest.mark.skip(reason="Test needs to be updated to work with place.created_by instead of place.user")
+        helpful_url = reverse('place-reviews-helpful', kwargs={
+            'place_pk': self.place.pk,
+            'pk': self.review.pk
+        })
+
+        # First voter
+        self.client.force_authenticate(user=self.voter)
+        response_voter1 = self.client.post(helpful_url)
+        self.assertEqual(response_voter1.status_code, status.HTTP_200_OK)
+        self.assertTrue(HelpfulVote.objects.filter(review=self.review, user=self.voter).exists())
+        self.review.refresh_from_db()
+        self.assertEqual(self.review.helpful_count, 1)
+
+        # Second voter
+        self.client.force_authenticate(user=self.another_voter)
+        response_voter2 = self.client.post(helpful_url)
+        self.assertEqual(response_voter2.status_code, status.HTTP_200_OK)
+        self.assertTrue(HelpfulVote.objects.filter(review=self.review, user=self.another_voter).exists())
+        self.review.refresh_from_db()
+        self.assertEqual(self.review.helpful_count, 2)
+
+        # First voter toggles off
+        self.client.force_authenticate(user=self.voter)
+        response_voter1_off = self.client.post(helpful_url)
+        self.assertEqual(response_voter1_off.status_code, status.HTTP_200_OK)
+        self.assertFalse(HelpfulVote.objects.filter(review=self.review, user=self.voter).exists())
+        self.review.refresh_from_db()
+        self.assertEqual(self.review.helpful_count, 1)
+
     def test_helpful_count_in_review_response(self):
         """Test that the helpful_count is included in the review response."""
+        review_detail_url = reverse('place-reviews-detail', kwargs={
+            'place_pk': self.place.pk,
+            'pk': self.review.pk
+        })
+        helpful_url = reverse('place-reviews-helpful', kwargs={
+            'place_pk': self.place.pk,
+            'pk': self.review.pk
+        })
+
+        # Initial state: 0 helpful votes
+        self.client.force_authenticate(user=self.voter) # Authenticate to view review
+        response = self.client.get(review_detail_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['helpfulCount'], 0)
+
+        # First voter votes
+        vote_response1 = self.client.post(helpful_url)
+        self.assertEqual(vote_response1.status_code, status.HTTP_200_OK)
         
-    @pytest.mark.skip(reason="Test needs to be updated to work with place.created_by instead of place.user")
+        response = self.client.get(review_detail_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['helpfulCount'], 1)
+
+        # Second voter votes
+        self.client.force_authenticate(user=self.another_voter)
+        vote_response2 = self.client.post(helpful_url)
+        self.assertEqual(vote_response2.status_code, status.HTTP_200_OK)
+        
+        # Need to re-authenticate as original voter to get review detail if permissions are strict,
+        # or ensure another_voter can also view it. Assuming any authenticated user can view.
+        response = self.client.get(review_detail_url) 
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['helpfulCount'], 2)
+
     def test_reverse_place_reviews_helpful(self):
         """Test URL reverse for the review helpful endpoint."""
-    
-    @pytest.mark.skip(reason="Test needs to be updated to work with place.created_by instead of place.user")
+        # The main purpose is to ensure reverse() doesn't fail due to misconfiguration
+        try:
+            # Based on setUpClass output, the path is prefixed with /api/
+            expected_url = f'/api/places/{self.place.pk}/reviews/{self.review.pk}/helpful/'
+            resolved_url = reverse('place-reviews-helpful', kwargs={
+                'place_pk': self.place.pk,
+                'pk': self.review.pk
+            })
+            self.assertEqual(resolved_url, expected_url)
+        except Exception as e:
+            self.fail(f"URL reversing failed for 'place-reviews-helpful': {str(e)}")
+
     def test_author_cannot_vote_own_review(self):
         """Test that review authors cannot vote on their own reviews."""
         self.client.force_authenticate(user=self.review_author)

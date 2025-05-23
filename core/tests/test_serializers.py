@@ -33,14 +33,15 @@ class PlaceSerializerTests(TestCase):
             'address': '123 Test St',
             'placeType': 'restaurant',
             'priceLevel': 2,
-            'feature_ids': [self.restaurant_feature.id],
-            'created_by': self.user.id
+            'featureIds': [self.restaurant_feature.id],
+            'createdBy': self.user.id
         }
         
         serializer = PlaceSerializer(data=data)
         self.assertTrue(serializer.is_valid(), f"Serializer errors: {serializer.errors}")
-        feature_ids = [str(f.id) for f in serializer.validated_data['features']]
-        self.assertEqual(feature_ids, [str(self.restaurant_feature.id)])
+        place = serializer.save()
+        saved_feature_ids = [str(f.id) for f in place.features.all()]
+        self.assertIn(str(self.restaurant_feature.id), saved_feature_ids)
 
     def test_all_features_applicable_to_all_place_types(self):
         """Test that all features are now applicable to all place types."""
@@ -49,14 +50,15 @@ class PlaceSerializerTests(TestCase):
             'address': '123 Test St',
             'placeType': 'restaurant',
             'priceLevel': 2,
-            'feature_ids': [self.hotel_feature.id],  # Hotel feature should now be valid for restaurant
-            'created_by': self.user.id
+            'featureIds': [self.hotel_feature.id],  # Hotel feature should now be valid for restaurant
+            'createdBy': self.user.id
         }
         
         serializer = PlaceSerializer(data=data)
         self.assertTrue(serializer.is_valid(), f"Serializer errors: {serializer.errors}")
-        feature_ids = [str(f.id) for f in serializer.validated_data['features']]
-        self.assertEqual(feature_ids, [str(self.hotel_feature.id)])
+        place = serializer.save()
+        saved_feature_ids = [str(f.id) for f in place.features.all()]
+        self.assertIn(str(self.hotel_feature.id), saved_feature_ids)
 
     def test_validate_feature_ids_update(self):
         """Test feature validation during place update."""
@@ -72,13 +74,16 @@ class PlaceSerializerTests(TestCase):
         
         # Update with hotel feature (should be valid now)
         data = {
-            'feature_ids': [self.hotel_feature.id]
+            'featureIds': [self.hotel_feature.id]
         }
         
         serializer = PlaceSerializer(place, data=data, partial=True)
         self.assertTrue(serializer.is_valid(), f"Serializer errors: {serializer.errors}")
-        feature_ids = [str(f.id) for f in serializer.validated_data['features']]
-        self.assertEqual(feature_ids, [str(self.hotel_feature.id)])
+        updated_place = serializer.save()
+        updated_feature_ids = [str(f.id) for f in updated_place.features.all()]
+        self.assertIn(str(self.hotel_feature.id), updated_feature_ids)
+        # Ensure the old feature is gone if not included in the update
+        self.assertNotIn(str(self.restaurant_feature.id), updated_feature_ids)
 
     def test_create_place(self):
         place = Place.objects.create(
@@ -91,3 +96,21 @@ class PlaceSerializerTests(TestCase):
         self.assertEqual(place.name, 'Test Place')
         self.assertEqual(place.price_level, 2)
         self.assertEqual(place.created_by, self.user) 
+
+    def test_no_features_provided_create(self):
+        """Test place creation when no feature_ids are provided."""
+        data = {
+            'name': 'Test Place',
+            'address': '123 Test St',
+            'placeType': 'restaurant',
+            'priceLevel': 2,
+            'createdBy': self.user.id
+        }
+        
+        serializer = PlaceSerializer(data=data)
+        self.assertTrue(serializer.is_valid(), f"Serializer errors: {serializer.errors}")
+        place = serializer.save()
+        self.assertEqual(place.name, 'Test Place')
+        self.assertEqual(place.price_level, 2)
+        self.assertEqual(place.created_by, self.user)
+        self.assertEqual(place.features.count(), 0) 

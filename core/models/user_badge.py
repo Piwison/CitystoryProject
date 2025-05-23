@@ -10,7 +10,7 @@ class UserBadge(TimestampMixin):
     Represents a badge earned by a user.
     Matches the UserBadge model in Prisma schema.
     """
-    id = models.CharField(max_length=128, primary_key=True, default=uuid.uuid4)  # Use uuid4 as default
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='user_badges')
     badge = models.ForeignKey('Badge', on_delete=models.CASCADE, related_name='user_badges')
     level = models.PositiveIntegerField(default=1)
